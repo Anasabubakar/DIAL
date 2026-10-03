@@ -30,7 +30,6 @@ export default async function Landing() {
           <div className="rise">
             <h1 className="font-display text-[clamp(2.6rem,6.2vw,4.5rem)]">Your computer is one phone call away.</h1>
             <p className="mt-6 max-w-lg text-lg leading-[1.55] text-muted">Tell Dial what you need. Review it. Get it done.</p>
-            <p className="mt-3 max-w-lg text-base text-muted">Right now Dial does one job well: it prepares a job application from your saved profile and CV, reads it back on the phone, and sends it only when you say yes.</p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link href={href} className={buttonClass("primary", "lg")}>Meet Dial <ArrowRight /></Link>
               {phone ? (
