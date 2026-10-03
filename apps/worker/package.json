@@ -19,6 +19,7 @@
     "@dial/db": "workspace:*",
     "@dial/providers": "workspace:*",
     "@electric-sql/pglite": "^0.5.8",
+    "@google/genai": "^2.26.0",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.117.2",
     "drizzle-orm": "^0.45.3",

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@dial/contracts": "workspace:*",
+    "@google/genai": "^2.26.0",
     "@supabase/supabase-js": "^2.117.2",
     "openai": "^7.27.0",
     "resend": "^6.32.0",

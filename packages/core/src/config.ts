@@ -16,9 +16,11 @@ const Env = z.object({
   VOICE_DEMO_USER_ID: z.string().optional(),
   REVIEW_TOKEN_SECRET: z.string().optional(),
   DOWNLOAD_TOKEN_SECRET: z.string().optional(),
-  DRAFTER: z.enum(["simulated", "openai"]).default("simulated"),
+  DRAFTER: z.enum(["simulated", "openai", "gemini"]).default("simulated"),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().optional(),
   EMAIL_PROVIDER: z.enum(["sandbox", "resend"]).default("sandbox"),
   RESEND_API_KEY: z.string().optional(),
   RESEND_WEBHOOK_SECRET: z.string().optional(),
@@ -42,6 +44,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   if (e.EMAIL_PROVIDER === "resend") { need("RESEND_API_KEY", "EMAIL_PROVIDER=resend"); need("RESEND_WEBHOOK_SECRET", "webhook signature verification"); }
   if (e.DRAFTER === "openai") { need("OPENAI_API_KEY", "DRAFTER=openai"); need("OPENAI_MODEL", "DRAFTER=openai"); }
+  if (e.DRAFTER === "gemini") { need("GEMINI_API_KEY", "DRAFTER=gemini"); need("GEMINI_MODEL", "DRAFTER=gemini"); }
   if (e.STORAGE === "supabase") { need("SUPABASE_URL", "STORAGE=supabase"); need("SUPABASE_SERVICE_ROLE_KEY", "STORAGE=supabase"); }
   if (e.NODE_ENV === "production") {
     if (e.DEV_AUTH) problems.push("DEV_AUTH must be false in production");
@@ -50,7 +53,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     need("REVIEW_TOKEN_SECRET", "production");
     need("DOWNLOAD_TOKEN_SECRET", "production");
     if (e.EMAIL_PROVIDER !== "resend") problems.push("EMAIL_PROVIDER must be resend in production (sandbox is simulated)");
-    if (e.DRAFTER !== "openai") problems.push("DRAFTER must be openai in production (simulated drafter is not allowed)");
+    if (e.DRAFTER === "simulated") problems.push("DRAFTER must be gemini or openai in production (the simulated drafter is not allowed)");
     if (e.STORAGE !== "supabase") problems.push("STORAGE must be supabase in production");
     if (!e.EMAIL_FROM || e.EMAIL_FROM.includes("dial.invalid")) problems.push("EMAIL_FROM must be a verified sender in production");
   }

@@ -31,7 +31,7 @@ If you'd rather run the persistent worker, use `Dockerfile.worker` on any contai
 
 **`dial-api`**: `NODE_ENV=production`, `DATABASE_URL` (Supabase *transaction pooler*, port 6543), `SUPABASE_URL`, `SUPABASE_JWKS_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `STORAGE=supabase`, `STORAGE_BUCKET=dial-files`, `REVIEW_TOKEN_SECRET`, `DOWNLOAD_TOKEN_SECRET`, `CRON_SECRET`
-(each 32+ random chars), `DRAFTER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`,
+(each 32+ random chars), `DRAFTER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL` (or `DRAFTER=openai` with `OPENAI_API_KEY`, `OPENAI_MODEL`), `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`,
 `RESEND_WEBHOOK_SECRET`, `EMAIL_FROM=Dial <apply@anasmasama.dev>`, `CONTROLLED_RECIPIENT`, `WEB_ORIGIN=https://dial.anasmasama.dev`,
 `VOICE_MODE=demo`, `VOICE_TOOL_TOKEN`, `VOICE_DEMO_USER_ID`, `PUBLIC_PHONE_NUMBER` (once the number exists).
 The API refuses to start in production if any of these are missing or if anything simulated is selected.

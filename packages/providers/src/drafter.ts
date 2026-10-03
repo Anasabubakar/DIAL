@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
+import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { DraftOutput } from "@dial/contracts";
 import type { Drafter, DraftRequest } from "./types";
@@ -33,6 +35,33 @@ export class OpenAIDrafter implements Drafter {
       text: { format: zodTextFormat(DraftOutput, "application_draft") },
     });
     return res.output_parsed;
+  }
+}
+
+/** Google Gemini drafter. Same prompt and the same schema as the OpenAI one; core still validates every field. */
+export class GeminiDrafter implements Drafter {
+  readonly name = "gemini";
+  readonly simulated = false;
+  private client: GoogleGenAI;
+  constructor(apiKey: string, private model: string) { this.client = new GoogleGenAI({ apiKey }); }
+
+  async draft(req: DraftRequest): Promise<unknown> {
+    const schema = z.toJSONSchema(DraftOutput) as Record<string, unknown>;
+    delete schema.$schema;
+    const user = [
+      "<candidate_profile>", JSON.stringify(req.profile), "</candidate_profile>",
+      "<job_description_untrusted>", JSON.stringify(req.role), "</job_description_untrusted>",
+      req.previous ? `<previous_draft>${JSON.stringify(req.previous)}</previous_draft>` : "",
+      req.instruction ? `<revision_instruction_untrusted>${JSON.stringify(req.instruction)}</revision_instruction_untrusted>` : "",
+    ].join("\n");
+    const res = await this.client.models.generateContent({
+      model: this.model,
+      contents: user,
+      config: { systemInstruction: SYSTEM, responseMimeType: "application/json", responseJsonSchema: schema, temperature: 0.4 },
+    });
+    const text = res.text;
+    if (!text) throw new Error("gemini returned no text");
+    return JSON.parse(text);
   }
 }
 

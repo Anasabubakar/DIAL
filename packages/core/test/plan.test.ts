@@ -75,3 +75,13 @@ describe("integrations registry", () => {
     expect(e.cannot.join(" ")).toMatch(/Read your inbox/);
   });
 });
+
+import { loadConfig } from "../src";
+describe("drafter config", () => {
+  const prod = { NODE_ENV: "production" };
+  test("gemini needs a key and model; production accepts gemini but never the simulated drafter", () => {
+    expect(() => loadConfig({ DRAFTER: "gemini" })).toThrow(/GEMINI_API_KEY[\s\S]*GEMINI_MODEL/);
+    expect(() => loadConfig({ ...prod, DRAFTER: "simulated" })).toThrow(/DRAFTER must be gemini or openai/);
+    expect(() => loadConfig({ DRAFTER: "gemini", GEMINI_API_KEY: "k", GEMINI_MODEL: "m" })).not.toThrow();
+  });
+});

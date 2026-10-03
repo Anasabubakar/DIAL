@@ -26,7 +26,7 @@ describe("config fails closed in production", () => {
   const prod = { NODE_ENV: "production" };
   test("rejects dev auth, sandbox email, simulated drafter, missing secrets", () => {
     expect(() => loadConfig({ ...prod, DEV_AUTH: "true" })).toThrow(/DEV_AUTH/);
-    expect(() => loadConfig({ ...prod })).toThrow(/EMAIL_PROVIDER must be resend[\s\S]*DRAFTER must be openai/);
+    expect(() => loadConfig({ ...prod })).toThrow(/EMAIL_PROVIDER must be resend[\s\S]*DRAFTER must be gemini or openai/);
   });
   test("voice demo needs a long token and a user", () => {
     expect(() => loadConfig({ VOICE_MODE: "demo", VOICE_TOOL_TOKEN: "short" })).toThrow(/VOICE_TOOL_TOKEN/);
