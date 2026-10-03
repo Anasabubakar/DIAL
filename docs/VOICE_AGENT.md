@@ -5,7 +5,7 @@ account, a provisioned number and a deployed API. **Until a real call to a provi
 
 ## Setup (dashboard steps cannot be scripted)
 
-1. Create or pick a workflow and an agent. Paste the **agent instructions** below into the workflow's system prompt.
+1. Create the Dial workflow (personality and rules) and bind it to the agent: `pnpm exec tsx scripts/bimpe-workflow.mts --apply`. It uses the **agent instructions** below. (Done once for the live agent on 2026-10-03.)
 2. Deploy -> Telephony -> Set up. Team settings -> Phone numbers: provision or link a number and assign it to the agent.
 3. Settings -> Voice: choose a voice and set the greeting: *"Hi, it's Dial. What do you need?"*
 4. Deploy the API with `VOICE_MODE=demo`, `VOICE_TOOL_TOKEN` (32+ random chars), `VOICE_DEMO_USER_ID` (the one demo profile).
