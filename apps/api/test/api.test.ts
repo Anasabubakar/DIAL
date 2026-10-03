@@ -214,3 +214,22 @@ describe("serverless: phone tools finish the work inside the request", () => {
     expect(email.sent).toHaveLength(1); // no duplicate
   });
 });
+
+describe("voice tools tolerate what an LLM tool-caller really sends", () => {
+  test("empty strings, nulls and extra fields are ignored; identity fields are still refused; requests are logged", async () => {
+    const { voice, svc } = await make();
+    await svc.saveProfile("demo", PROFILE, true); await svc.saveRole("demo", ROLE);
+    for (const body of [{}, { role_id: "", role_hint: "", use_original_cv: null, mode: "" }, { mode: "cloud", extra: "x", confidence: 0.9 }, { role_hint: "Paystack", use_original_cv: false }]) {
+      const r = (await voice("prepare_application", body)).json();
+      expect(r.ok, JSON.stringify(body)).toBe(true);
+    }
+    expect((await voice("get_application_status", { task_id: (await svc.listTasks("demo"))[0]!.id, note: "hi" })).json().ok).toBe(true);
+    expect((await voice("list_saved_roles", { user_id: "victim" })).json().ok).toBe(false);
+    expect((await voice("list_saved_roles", { phone_number: "+234700" })).json().ok).toBe(false);
+    const { voiceToolLog } = await import("@dial/db");
+    const rows = await (svc as unknown as { d: { db: import("@dial/db").Db } }).d.db.select().from(voiceToolLog);
+    expect(rows.length).toBeGreaterThanOrEqual(6);
+    expect(rows.some((r) => r.tool === "prepare_application" && r.ok === true)).toBe(true);
+    expect(JSON.stringify(rows)).not.toContain(VOICE); // the bearer token is never stored
+  });
+});

@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
-  approvals, callSessions, cvs, draftVersions, emailAttempts, jobs, profiles, roles, taskEvents, tasks, webhookEvents, type Db,
+  approvals, callSessions, cvs, draftVersions, emailAttempts, jobs, profiles, roles, taskEvents, tasks, voiceToolLog, webhookEvents, type Db,
 } from "@dial/db";
 import {
   DraftOutput, ProfileInput, RoleInput, TASK_TRANSITIONS,
@@ -114,6 +114,13 @@ export class DialService {
     if (all.length === 1) return all[0]!;
     if (!all.length) throw new DialError("not_found", "You have no saved roles yet.");
     throw new DialError("conflict", "You have several saved roles. Which one should I apply for?");
+  }
+
+  /** Best-effort record of a phone-tool request, so failures on a live call can be diagnosed. Never throws. */
+  async logVoiceTool(e: { tool: string; args: Record<string, unknown> | null; httpStatus: number; ok: boolean | null; ms: number; spoken?: string | null; error?: string | null }) {
+    try {
+      await this.db.insert(voiceToolLog).values({ id: newId("vtl"), tool: e.tool, args: e.args, httpStatus: e.httpStatus, ok: e.ok, ms: e.ms, spoken: e.spoken?.slice(0, 240) ?? null, error: e.error?.slice(0, 300) ?? null });
+    } catch { /* logging must never break a call */ }
   }
 
   async ensureCallSession(userId: string, channel: string, tokenFingerprint: string) {
@@ -498,6 +505,7 @@ export class DialService {
         await tx.delete(tasks).where(inArray(tasks.id, ids));
       });
     }
+    await this.db.delete(voiceToolLog).where(sql`${voiceToolLog.createdAt} < now() - (${callDays} * interval '1 day')`);
     const calls = await this.db.delete(callSessions).where(sql`${callSessions.startedAt} < now() - (${callDays} * interval '1 day')`).returning({ id: callSessions.id });
     await this.db.delete(jobs).where(sql`${jobs.status} = 'done' AND ${jobs.createdAt} < now() - interval '7 days'`);
     return { tasksDeleted: ids.length, callSessionsDeleted: calls.length };

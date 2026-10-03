@@ -131,6 +131,19 @@ export const emailAttempts = pgTable("email_attempts", {
   updatedAt: ts("updated_at").notNull().default(sql`now()`),
 }, (t) => [uniqueIndex("email_idem").on(t.idempotencyKey)]);
 
+/** One row per phone-tool request: what the voice agent sent and what Dial answered. Never stores the bearer token. */
+export const voiceToolLog = pgTable("voice_tool_log", {
+  id: id(),
+  tool: text("tool").notNull(),
+  args: jsonb("args").$type<Record<string, unknown>>(),
+  httpStatus: integer("http_status").notNull(),
+  ok: boolean("ok"),
+  ms: integer("ms").notNull(),
+  spoken: text("spoken"),
+  error: text("error"),
+  createdAt: createdAt(),
+}, (t) => [index("voice_log_time_idx").on(t.createdAt)]);
+
 export const webhookEvents = pgTable("webhook_events", {
   providerEventId: text("provider_event_id").primaryKey(),
   provider: text("provider").notNull(),

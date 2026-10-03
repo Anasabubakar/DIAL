@@ -198,11 +198,32 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   /* ---------------- voice tools (BimpeAI custom HTTP tools) ---------------- */
+  // The voice platform's LLM often sends empty strings, nulls or extra fields for parameters it didn't fill.
+  // Those are ignored. Anything that tries to name a user or caller is refused: identity comes from the token only.
+  const IDENTITY_KEYS = /^(user_?id|user|caller|caller_?id|phone|phone_?number|from|account|email)$/i;
   const voice = async <T>(req: FastifyRequest, reply: FastifyReply, schema: z.ZodType<T>, run: (a: T, ctx: { userId: string; callSessionId: string; fp: string }) => Promise<ToolResult>) => {
+    const started = Date.now();
+    const tool = req.url.split("/").pop()?.split("?")[0] ?? "unknown";
     const { userId, fp } = auth.voiceUser(req);
-    const args = schema.parse(req.body ?? {});
-    const callSessionId = await svc.ensureCallSession(userId, "voice-demo", fp);
-    return reply.send(await run(args, { userId, callSessionId, fp }));
+    const raw = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? (req.body as Record<string, unknown>) : {};
+    const cleaned = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== null && v !== undefined && v !== ""));
+    const log = (httpStatus: number, out: ToolResult | null, error?: string) =>
+      svc.logVoiceTool({ tool, args: cleaned, httpStatus, ok: out?.ok ?? null, ms: Date.now() - started, spoken: out?.spoken, error });
+    if (Object.keys(cleaned).some((k) => IDENTITY_KEYS.test(k))) {
+      const out: ToolResult = { ok: false, spoken: "I can only act for the account linked to this line." };
+      await log(200, out, "rejected identity field");
+      return reply.send(out);
+    }
+    try {
+      const args = schema.parse(cleaned);
+      const callSessionId = await svc.ensureCallSession(userId, "voice-demo", fp);
+      const out = await run(args, { userId, callSessionId, fp });
+      await log(200, out);
+      return reply.send(out);
+    } catch (e) {
+      await log(e instanceof DialError ? e.status : e instanceof ZodError ? 200 : 500, null, e instanceof ZodError ? `invalid arguments: ${e.issues.map((i) => i.path.join(".") + " " + i.message).join("; ")}` : e instanceof Error ? e.message : String(e));
+      throw e;
+    }
   };
   /**
    * Serverless hosts freeze a function once it has answered, so background work stalls. Instead, a request that depends on

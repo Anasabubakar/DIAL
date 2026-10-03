@@ -78,18 +78,18 @@ export type DraftOutput = z.infer<typeof DraftOutput>;
 /* ---------- voice tools (BimpeAI custom HTTP tools) ---------- */
 // No user/caller field is accepted anywhere: identity comes from the bearer token only.
 
-export const ListSavedRolesArgs = z.object({}).strict();
+export const ListSavedRolesArgs = z.object({});
 export const PrepareApplicationArgs = z
   .object({ role_id: z.string().min(1).max(64).optional(), role_hint: z.string().max(200).optional(), use_original_cv: z.boolean().optional(), mode: ExecutionMode.optional() })
-  .strict();
-export const GetApplicationStatusArgs = z.object({ task_id: z.string().min(1).max(64) }).strict();
+  ;
+export const GetApplicationStatusArgs = z.object({ task_id: z.string().min(1).max(64) });
 export const ReviseApplicationArgs = z
   .object({ task_id: z.string().min(1).max(64), instruction: z.string().min(1).max(500), use_original_cv: z.boolean().optional() })
-  .strict();
-export const ReviewApplicationArgs = z.object({ task_id: z.string().min(1).max(64) }).strict();
+  ;
+export const ReviewApplicationArgs = z.object({ task_id: z.string().min(1).max(64) });
 export const ConfirmAndSendArgs = z
   .object({ task_id: z.string().min(1).max(64), review_token: z.string().min(10).max(2000) })
-  .strict();
+  ;
 
 export type ToolName =
   | "list_saved_roles"
