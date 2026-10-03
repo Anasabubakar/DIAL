@@ -1,4 +1,4 @@
 import { defineConfig } from "tsup";
 
-// Pre-bundles the API into a single Vercel function: api/index.js. Third-party deps stay external (installed by Vercel).
-export default defineConfig({ entry: { index: "src/vercel.ts" }, outDir: "api", format: ["esm"], target: "node22", noExternal: [/^@dial\//], clean: true, outExtension: () => ({ js: ".js" }) });
+// Bundles the API into api/_handler.js (loaded by the committed api/index.js). Third-party deps stay external.
+export default defineConfig({ entry: { _handler: "src/vercel.ts" }, outDir: "api", format: ["esm"], target: "node22", noExternal: [/^@dial\//], clean: false, outExtension: () => ({ js: ".js" }) });

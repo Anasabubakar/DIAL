@@ -6,7 +6,7 @@ import {
   DraftOutput, ProfileInput, RoleInput, TASK_TRANSITIONS,
   type AttachmentChoice, type TaskEventType, type TaskStatus,
 } from "@dial/contracts";
-import type { Drafter, EmailProvider, StorageProvider } from "@dial/providers";
+import { DraftProviderError, type Drafter, type EmailProvider, type StorageProvider } from "@dial/providers";
 import { DialError } from "./errors";
 import { planApplication, type Plan } from "./plan";
 import { enqueue } from "./jobs";
@@ -226,12 +226,18 @@ export class DialService {
     } else {
       const previous = prevRow ? { subject: prevRow.subject, body: prevRow.body, selectedEntryIds: prevRow.supportingEntryIds, cvWording: prevRow.cvWording, changeSummary: prevRow.changeSummary } : undefined;
       let lastErr = "";
+      let outage: DraftProviderError | null = null;
       for (let i = 0; i < (this.d.cfg.maxDraftAttempts ?? 3); i++) {
         try {
           draft = this.validateDraft(await this.d.drafter.draft({ profile, role: { title: role.title, company: role.company, description: role.description }, instruction: instruction ?? undefined, previous }), profileIds);
           break;
-        } catch (e) { lastErr = e instanceof Error ? e.message : String(e); draft = null; }
+        } catch (e) {
+          lastErr = e instanceof Error ? e.message : String(e); draft = null;
+          if (e instanceof DraftProviderError) { outage = e; break; } // not a bad answer: stop and let the job back off
+        }
       }
+      // A provider outage must not fail the application. Throwing re-queues the job with backoff; only exhausted attempts fail the task.
+      if (!draft && outage) throw outage;
       if (!draft) return this.failTask(taskId, "preparation_failed", "I couldn't produce a valid draft. Your profile and role are unchanged.", lastErr);
     }
 

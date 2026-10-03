@@ -263,3 +263,31 @@ describe("retention", () => {
     expect([...storage.files.keys()].some((k) => k.includes(done))).toBe(false);
   });
 });
+
+describe("drafting provider outages", () => {
+  test("an outage re-queues the job and the task completes once the provider recovers", async () => {
+    const { DraftProviderError } = await import("@dial/providers");
+    let calls = 0;
+    const good = { subject: "Application for Frontend Engineer", body: "x".repeat(60), selectedEntryIds: ["e1"], cvWording: [], changeSummary: ["Used your experience."] };
+    const flaky: Drafter = { name: "flaky", simulated: true, draft: async () => { calls++; if (calls <= 2) throw new DraftProviderError("overloaded (503)"); return good; } };
+    const { svc, setup, h } = await harness({ drafter: flaky });
+    const role = await setup();
+    const { task } = await svc.prepareApplication("u1", { roleId: role.id });
+    await processNext(h.db, svc, "w", { backoffMs: 0 });
+    expect((await svc.ownedTask("u1", task.id)).status).toBe("preparing"); // not failed: waiting for a retry
+    await processNext(h.db, svc, "w", { backoffMs: 0 });
+    expect((await svc.ownedTask("u1", task.id)).status).toBe("preparing");
+    await processNext(h.db, svc, "w", { backoffMs: 0 });
+    expect((await svc.ownedTask("u1", task.id)).status).toBe("ready_for_review");
+    expect(calls).toBe(3);
+  });
+  test("a persistent outage fails the task only after the job's attempts are exhausted", async () => {
+    const { DraftProviderError } = await import("@dial/providers");
+    const down: Drafter = { name: "down", simulated: true, draft: async () => { throw new DraftProviderError("down"); } };
+    const { svc, setup, h } = await harness({ drafter: down });
+    const role = await setup();
+    const { task } = await svc.prepareApplication("u1", { roleId: role.id });
+    for (let i = 0; i < 6; i++) await processNext(h.db, svc, "w", { backoffMs: 0 });
+    expect((await svc.ownedTask("u1", task.id)).status).toBe("failed");
+  });
+});

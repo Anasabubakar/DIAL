@@ -42,6 +42,9 @@ export interface EmailProvider {
 }
 
 /* ---------- drafting ---------- */
+/** The drafting provider was unreachable or overloaded (not a bad answer). Callers should retry later, not fail the task. */
+export class DraftProviderError extends Error { constructor(m: string) { super(m); this.name = "DraftProviderError"; } }
+
 export interface DraftRequest {
   profile: ProfileInput;
   role: { title: string; company: string; description: string };
