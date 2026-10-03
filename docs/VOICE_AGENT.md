@@ -9,7 +9,7 @@ account, a provisioned number and a deployed API. **Until a real call to a provi
 2. Deploy -> Telephony -> Set up. Team settings -> Phone numbers: provision or link a number and assign it to the agent.
 3. Settings -> Voice: choose a voice and set the greeting: *"Hi, it's Dial. What do you need?"*
 4. Deploy the API with `VOICE_MODE=demo`, `VOICE_TOOL_TOKEN` (32+ random chars), `VOICE_DEMO_USER_ID` (the one demo profile).
-5. Register the tools: `pnpm exec tsx scripts/bimpe-setup.mts` (dry run), then `--apply`. The script is untested against a live account.
+5. Register the tools: `pnpm exec tsx scripts/bimpe-setup.mts` (dry run), then `--apply` (add `--recreate` to replace the six tools). It is idempotent and enables the actions. Applied to the live agent on 2026-10-03. The tool timeout is in milliseconds, and no response mapping is used so the model sees `task_id` and `review_token`.
 6. In the web app, sign in as the demo user, confirm the profile, upload a CV and save a role with a controlled recipient.
 7. Test with the dashboard Playground -> Voice first, then call the number from a phone.
 

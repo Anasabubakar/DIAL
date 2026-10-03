@@ -36,14 +36,31 @@ console.log(JSON.stringify({ agentId, baseUrl: `${base}/v1/voice/tools`, tools: 
 if (!apply) { console.log("Dry run. Re-run with --apply to create the integration."); process.exit(0); }
 
 const bimpe = new BimpeAI({ apiKey: env("BIMPEAI_API_KEY") });
-const api = await bimpe.agents.integrations.customApi.configure(agentId, {
+// Idempotent: reuse an existing "Dial" integration and only add tools it doesn't have yet.
+const existing = (await bimpe.agents.integrations.customApi.list(agentId)).find((i) => i.config.name === "Dial");
+const api = existing ?? (await bimpe.agents.integrations.customApi.configure(agentId, {
   name: "Dial", description: "Dial application workflow", base_url: `${base}/v1/voice/tools`, auth_type: "bearer", auth_config: { token },
-});
+}));
+console.log(existing ? `reusing integration ${api.id}` : `created integration ${api.id}`);
+const recreate = process.argv.includes("--recreate");
+let current = await bimpe.agents.integrations.customApi.tools.list(agentId, api.id);
+if (recreate) { // replaces only this integration's tools, never anything else on the agent
+  for (const t of current) { await bimpe.agents.integrations.customApi.tools.delete(agentId, api.id, t.id); console.log("removed", t.name); }
+  current = [];
+}
+const have = new Set(current.map((t) => t.name));
 for (const t of tools) {
+  if (have.has(t.name)) { console.log("exists", t.name); continue; }
   await bimpe.agents.integrations.customApi.tools.add(agentId, api.id, {
     name: t.name, description: t.description, http_method: "POST", url_template: `/${t.path}`, body_params: t.body,
-    response_mapping: { path: "spoken" }, timeout: 15,
-    // confirm_and_send is also gated by the spoken read-back in the agent prompt; keep the platform's own approval off so the call flows.
+    // No response_mapping: the model must see the whole JSON (spoken + task_id / review_token), not just the spoken line.
+    timeout: 15000, // milliseconds (the API requires >= 1000)
   });
   console.log("added", t.name);
 }
+
+// Make sure every Dial action is switched on for this agent.
+const actions = await bimpe.agents.actions.list(agentId);
+const off = actions.filter((a) => a.integration_name === "Dial" && !a.is_enabled);
+if (off.length) { await bimpe.agents.actions.enable(agentId, { action_ids: off.map((a) => a.id) }); console.log("enabled", off.length, "actions"); }
+console.log("dial actions:", actions.filter((a) => a.integration_name === "Dial").map((a) => `${a.action_name}:${a.is_enabled || off.includes(a) ? "on" : "off"}`).join(", "));
