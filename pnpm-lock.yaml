@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@bimpeai/sdk':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@playwright/test':
         specifier: ^1.61.0
         version: 1.61.0
@@ -294,6 +297,10 @@ packages:
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
+
+  '@bimpeai/sdk@0.4.1':
+    resolution: {integrity: sha512-4RYHEJ3ZuoSjBDmYxT/4JzPwkuzC3cTYO2ac8Dq9l9ZfxWolPi1lZfHJaWXi2KqWou6OVyCkg00J5VIyNEQbpw==}
+    engines: {node: '>=24.0.0'}
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -3174,6 +3181,8 @@ snapshots:
   '@alloc/quick-lru@5.3.0': {}
 
   '@babel/runtime@7.29.7': {}
+
+  '@bimpeai/sdk@0.4.1': {}
 
   '@drizzle-team/brocli@0.10.2': {}
 

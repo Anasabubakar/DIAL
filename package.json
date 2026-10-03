@@ -12,6 +12,7 @@
     "test": "pnpm -r test"
   },
   "devDependencies": {
+    "@bimpeai/sdk": "^0.4.1",
     "@playwright/test": "^1.61.0",
     "@types/node": "^26.6.4",
     "tsup": "^8.5.1",
