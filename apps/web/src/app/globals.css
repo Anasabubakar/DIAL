@@ -1,43 +1,57 @@
 @import "tailwindcss";
 
+/*
+  Dial identity (Figma: "Dial — Brand Identity", file mq85LGsGioyiVTlV5fzYls).
+  Ink / Citron / Paper / Stone are the approved palette. `muted` (#615C63), `track` (#ECEAE4) and `end`
+  (#CC403D) are the supporting tones used inside the Figma product touchpoints.
+  Citron is an accent (fills, progress, active state). It is never used as text on Paper.
+*/
 @theme {
-  --color-canvas: #f7f6f2;
+  --color-ink: #29232e;
+  --color-citron: #dded9c;
+  --color-paper: #f6f3eb;
+  --color-stone: #817b83;
+  --color-muted: #615c63;
+  --color-track: #eceae4;
+  --color-end: #cc403d;
   --color-surface: #ffffff;
-  --color-ink: #171918;
-  --color-muted: #5b625d;
-  --color-accent: #355e4b;
-  --color-accent-ink: #ffffff;
-  --color-accent-soft: #e6eee9;
-  --color-line: #e4e6e0;
-  --color-line-strong: #cfd3cb;
-  --color-danger: #9b3b2e;
-  --color-danger-soft: #f6e7e4;
-  --color-warn: #7a5a12;
-  --color-warn-soft: #f6eed8;
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-serif), ui-serif, Georgia, serif;
-  --radius-card: 14px;
-  --shadow-card: 0 1px 0 rgba(23, 25, 24, 0.03), 0 8px 24px -16px rgba(23, 25, 24, 0.18);
+  --color-line: color-mix(in srgb, #817b83 28%, transparent);
+  --color-line-strong: color-mix(in srgb, #817b83 55%, transparent);
+  --color-citron-soft: color-mix(in srgb, #dded9c 45%, #f6f3eb);
+  --color-danger-soft: color-mix(in srgb, #cc403d 10%, #f6f3eb);
+  --color-warn-soft: color-mix(in srgb, #dded9c 55%, #f6f3eb);
+  /* Semantic aliases: components use these, never raw hex. */
+  --color-canvas: var(--color-paper);
+  --color-accent: var(--color-ink);
+  --color-accent-ink: var(--color-paper);
+  --color-accent-soft: var(--color-citron-soft);
+  --color-danger: color-mix(in srgb, #cc403d 82%, #29232e);
+  --color-warn: var(--color-ink);
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --radius-card: 22px;
+  --shadow-card: 0 1px 0 rgba(41, 35, 46, 0.03), 0 14px 30px -22px rgba(41, 35, 46, 0.28);
 }
 
-html { background: var(--color-canvas); color: var(--color-ink); -webkit-text-size-adjust: 100%; }
-body { font-family: var(--font-sans); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-::selection { background: var(--color-accent); color: #fff; }
-:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+html { background: var(--color-paper); color: var(--color-ink); -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font-sans); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+::selection { background: var(--color-citron); color: var(--color-ink); }
 
-.font-display { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.02em; }
-.eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-muted); font-weight: 500; }
+/* Focus: ink ring with a citron halo, visible on paper, white and ink surfaces. */
+:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--color-citron); border-radius: 10px; }
+.on-ink :focus-visible { outline-color: var(--color-paper); box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-citron) 55%, transparent); }
 
-/* One restrained entrance; disabled for reduced motion. */
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-@keyframes dial-turn { 0% { transform: rotate(0); } 55% { transform: rotate(-215deg); } 100% { transform: rotate(0); } }
-.dial-wheel { transform-origin: 50% 50%; animation: dial-turn 3.2s cubic-bezier(0.55, 0, 0.25, 1) 0.8s 1 both; }
-.dial-wheel-wrap:hover .dial-wheel { animation: dial-turn 2.2s cubic-bezier(0.55, 0, 0.25, 1) 1 both; }
-@keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(2); opacity: 0; } }
-.pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+/* Type scale from the Figma styles: Heading 42/50 SemiBold, Body 18/26, Label 14 Bold. */
+.font-display { font-weight: 600; letter-spacing: -0.025em; line-height: 1.08; text-wrap: balance; }
+.eyebrow { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); font-weight: 700; }
+.on-ink .eyebrow { color: var(--color-citron); }
+
+/* One purposeful entrance, off for reduced motion. */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes progress-sheen { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+.progress-busy::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent); animation: progress-sheen 1.8s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise, .dial-wheel, .dial-wheel-wrap:hover .dial-wheel, .pulse-ring { animation: none !important; }
-  * { scroll-behavior: auto !important; }
+  .rise, .progress-busy::after { animation: none !important; }
+  * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }

@@ -2,7 +2,7 @@
 import * as T from "@radix-ui/react-tabs";
 import { cn } from "@/lib/cn";
 
-// Original underline-style tabs on Radix primitives (shadcn/ui pattern, MIT).
+// Underline tabs on Radix primitives. The active state carries a citron bar under Ink text.
 export const Tabs = T.Root;
 export function TabsList({ className, ...p }: T.TabsListProps) {
   return <T.List className={cn("flex gap-6 border-b border-line", className)} {...p} />;
@@ -10,7 +10,7 @@ export function TabsList({ className, ...p }: T.TabsListProps) {
 export function TabsTrigger({ className, ...p }: T.TabsTriggerProps) {
   return (
     <T.Trigger
-      className={cn("relative -mb-px border-b-2 border-transparent pb-2.5 pt-1 text-sm font-medium text-muted transition-colors hover:text-ink data-[state=active]:border-accent data-[state=active]:text-ink", className)}
+      className={cn("relative -mb-px inline-flex min-h-11 items-center border-b-[3px] border-transparent text-[15px] font-semibold text-muted transition-colors hover:text-ink data-[state=active]:border-citron data-[state=active]:text-ink data-[state=active]:[box-shadow:0_2px_0_0_var(--color-ink)]", className)}
       {...p}
     />
   );
