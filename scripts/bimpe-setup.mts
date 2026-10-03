@@ -23,7 +23,7 @@ const str = (name: string, description: string, required = false) => ({ name, ty
 const tools = [
   { name: "list_saved_roles", path: "list_saved_roles", description: "List the roles the caller has saved. Use when they ask what they can apply for.", body: [] },
   { name: "prepare_application", path: "prepare_application", description: "Start preparing an application. Returns a task_id immediately; poll get_application_status.",
-    body: [str("role_hint", "Company or job title the caller mentioned, if any."), { name: "use_original_cv", type: "boolean" as const, description: "True only if the caller asked to use their original CV.", required: false }] },
+    body: [str("role_hint", "Company or job title the caller mentioned, if any."), { name: "use_original_cv", type: "boolean" as const, description: "True only if the caller asked to use their original CV.", required: false }, str("mode", "Either \"cloud\" or \"laptop\". Set it only if the caller said where to do it. \"laptop\" is not available yet: the tool will say so and offer the cloud.")] },
   { name: "get_application_status", path: "get_application_status", description: "Check progress of an application. Speak the 'spoken' field. Call every few seconds until it is ready for review.", body: [str("task_id", "The task_id returned by prepare_application.", true)] },
   { name: "revise_application", path: "revise_application", description: "Change the draft. Any earlier approval stops counting. Then poll status and review again.",
     body: [str("task_id", "The task_id.", true), str("instruction", "What the caller wants changed, in their words.", true), { name: "use_original_cv", type: "boolean" as const, description: "True if they want their original CV attached.", required: false }] },

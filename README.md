@@ -56,6 +56,14 @@ to the Chromium build already cached on the dev machine), `pnpm build`.
 - **Fails closed.** In production the API refuses to start with dev auth, sandbox email, the simulated drafter, local storage or
   missing secrets.
 
+## Where a request runs
+
+**Cloud** works today: Dial uses what it holds (your confirmed profile, CV, saved roles) plus its own email sender, and your laptop can be off.
+**Laptop** is *not built*: there is no companion app, so Dial can't touch your files or desktop apps, and a laptop that's off can't be reached from
+the cloud. Choosing "Use my laptop" shows why it can't run and offers the cloud only when the cloud can really do the job. The Connections page
+renders a server-side registry (`packages/core/src/integrations.ts`): Google Drive, Calendar, Gmail, Zapier and the laptop companion are listed as
+**not built**, with no scopes, no sign-in and nothing to revoke, until they genuinely work.
+
 ## Voice (BimpeAI)
 
 See [docs/BIMPE.md](docs/BIMPE.md) (what the docs verify and what they don't) and [docs/VOICE_AGENT.md](docs/VOICE_AGENT.md)
@@ -83,11 +91,14 @@ transcripts are stored. Users can delete everything from Connections.
 | Typecheck, 35 unit/API tests, 9 Playwright e2e (desktop + mobile), production builds | Pass |
 | Built API and worker run the full flow (draft, PDF, approve, send, drain) | Pass (simulated providers) |
 | UI inspected on desktop and mobile; keyboard skip link; no horizontal overflow | Pass |
+| Live Resend email: real send via the real pipeline, controlled recipient, PDF attached | **Pass** (2026-10-03): arrived in the inbox with `Dial-Live-Test-CV.pdf`; local database and simulated drafter |
+| Supabase project: schema, RLS and private bucket applied | **Pass** (tables, 4 migrations tracked, `dial-files` private) |
 | Docker images build | **Not verified**: the Docker daemon was not running on the build machine |
-| Real authentication (Supabase) | **Unverified**: code written, no Supabase project or keys |
+| Real authentication (Supabase) | **Unverified**: code written; project configured (JWKS), no end-to-end sign-in run yet |
 | Live OpenAI drafting, Resend email + webhook, Supabase storage | **Unverified**: no credentials |
-| Real phone workflow, controlled inbox receives the right attachment | **Blocked**: needs BimpeAI key, provisioned number, deployed API |
-| Deployment | **Not deployed**: no target configured, no credentials |
+| Phone number | **Requested** (Nigeria, inbound), waiting on BimpeAI review |
+| Real phone workflow | **Blocked**: needs the approved number and a deployed API |
+| Deployment | **Not deployed**: needs a Vercel token and the Supabase database URL and service-role key. See `docs/DEPLOY.md` |
 
 Not production-ready until the unverified and blocked rows pass. When they do, release the web workspace or a controlled private pilot
 with public phone access disabled.
