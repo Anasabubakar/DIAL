@@ -77,6 +77,7 @@ export const draftVersions = pgTable("draft_versions", {
   attachmentFilename: text("attachment_filename").notNull(),
   changeSummary: jsonb("change_summary").$type<string[]>().notNull(),
   supportingEntryIds: jsonb("supporting_entry_ids").$type<string[]>().notNull(),
+  cvWording: jsonb("cv_wording").$type<{ entryId: string; bullets: string[] }[]>().notNull().default([]),
   contentHash: text("content_hash").notNull(),
   instruction: text("instruction"),
   createdAt: createdAt(),

@@ -28,7 +28,7 @@ export class SupabaseStorage implements StorageProvider {
     this.client = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
   }
   async put(p: string, bytes: Uint8Array, contentType: string) {
-    const { error } = await this.client.storage.from(this.bucket).upload(p, bytes, { contentType, upsert: false });
+    const { error } = await this.client.storage.from(this.bucket).upload(p, bytes, { contentType, upsert: true });
     if (error) throw new Error(`storage put failed: ${error.message}`);
   }
   async get(p: string) {

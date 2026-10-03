@@ -1,0 +1,1 @@
+ALTER TABLE "draft_versions" ADD COLUMN "cv_wording" jsonb DEFAULT '[]'::jsonb NOT NULL;
