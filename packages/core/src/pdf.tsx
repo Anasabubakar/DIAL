@@ -4,19 +4,19 @@ import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-p
 import type { ProfileInput } from "@dial/contracts";
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 48, paddingBottom: 56, paddingHorizontal: 54, fontFamily: "Helvetica", fontSize: 10, color: "#171918", lineHeight: 1.45 },
+  page: { paddingTop: 48, paddingBottom: 56, paddingHorizontal: 54, fontFamily: "Helvetica", fontSize: 10, color: "#29232E", lineHeight: 1.45 },
   name: { fontSize: 22, lineHeight: 1.15, fontFamily: "Helvetica-Bold", marginBottom: 6 },
-  headline: { fontSize: 11, lineHeight: 1.3, color: "#355E4B", marginBottom: 4 },
-  contact: { fontSize: 9, color: "#69706C", marginBottom: 14 },
-  h: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 1.2, color: "#355E4B", textTransform: "uppercase", marginTop: 14, marginBottom: 6, borderBottomWidth: 0.75, borderBottomColor: "#E4E6E0", paddingBottom: 3 },
+  headline: { fontSize: 11, lineHeight: 1.3, color: "#29232E", marginBottom: 4 },
+  contact: { fontSize: 9, color: "#615C63", marginBottom: 14 },
+  h: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 1.2, color: "#29232E", textTransform: "uppercase", marginTop: 14, marginBottom: 6, borderBottomWidth: 0.75, borderBottomColor: "#DAD6CE", paddingBottom: 3 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   title: { fontFamily: "Helvetica-Bold", fontSize: 10.5 },
-  dates: { color: "#69706C", fontSize: 9 },
-  org: { color: "#69706C", marginBottom: 2 },
+  dates: { color: "#615C63", fontSize: 9 },
+  org: { color: "#615C63", marginBottom: 2 },
   bullet: { flexDirection: "row", marginTop: 2 },
   dot: { width: 10 },
   entry: { marginBottom: 8 },
-  footer: { position: "absolute", bottom: 28, left: 54, right: 54, fontSize: 8, color: "#69706C", textAlign: "right" },
+  footer: { position: "absolute", bottom: 28, left: 54, right: 54, fontSize: 8, color: "#615C63", textAlign: "right" },
 });
 
 // Standard PDF fonts only cover Latin-1; strip control characters and anything unrenderable.
