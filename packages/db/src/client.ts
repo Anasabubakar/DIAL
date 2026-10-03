@@ -14,7 +14,9 @@ export async function createDb(opts: { url?: string; dataDir?: string } = {}): P
     return { db: drizzlePg(client, { schema }) as unknown as Db, close: () => client.end(), kind: "postgres" };
   }
   const { PGlite } = await import("@electric-sql/pglite");
-  const client = new PGlite(opts.dataDir ?? ".data/pglite");
+  const dir = opts.dataDir ?? ".data/pglite";
+  if (!dir.startsWith("memory://")) (await import("node:fs")).mkdirSync(dir, { recursive: true });
+  const client = new PGlite(dir);
   await client.waitReady;
   return { db: drizzlePglite(client, { schema }) as unknown as Db, close: () => client.close(), kind: "pglite" };
 }
