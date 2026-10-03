@@ -13,13 +13,13 @@ export function RoleForm() {
   return (
     <form onSubmit={(e) => { e.preventDefault(); start(async () => { setErr(null); const r = await saveRole(v); if (r.ok) setV({ title: "", company: "", applyEmail: "", description: "" }); else setErr(r.error); }); }}
       className="space-y-4 rounded-[var(--radius-card)] border border-line bg-surface p-5">
-      <h2 className="font-medium">Save a role</h2>
+      <h2 className="text-lg font-bold">Add a role</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div><Label htmlFor="rt">Job title</Label><Input id="rt" value={v.title} onChange={set("title")} required maxLength={200} /></div>
         <div><Label htmlFor="rc">Company</Label><Input id="rc" value={v.company} onChange={set("company")} required maxLength={200} /></div>
       </div>
-      <div><Label htmlFor="re">Application email</Label><Input id="re" type="email" value={v.applyEmail} onChange={set("applyEmail")} required /><Hint>Saved with the role so nobody has to dictate an address over the phone.</Hint></div>
-      <div><Label htmlFor="rd">Job description</Label><Textarea id="rd" value={v.description} onChange={set("description")} required minLength={20} maxLength={20000} className="min-h-40" /><Hint>Pasted text is treated as content only, never as instructions.</Hint></div>
+      <div><Label htmlFor="re">Application email</Label><Input id="re" type="email" value={v.applyEmail} onChange={set("applyEmail")} required /><Hint>Saved with the role, so you never have to spell it out over the phone.</Hint></div>
+      <div><Label htmlFor="rd">Job description</Label><Textarea id="rd" value={v.description} onChange={set("description")} required minLength={20} maxLength={20000} className="min-h-40" /><Hint>Dial reads this as information only. Nothing in it can tell Dial what to do.</Hint></div>
       {err && <p role="alert" className="text-sm text-danger">{err}</p>}
       <Button type="submit" disabled={pending}><Plus /> {pending ? "Saving…" : "Save role"}</Button>
     </form>

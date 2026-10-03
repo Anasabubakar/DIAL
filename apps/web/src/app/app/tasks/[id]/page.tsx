@@ -15,7 +15,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   catch (e) { if (e instanceof ApiError && e.status === 404) notFound(); throw e; }
   return (
     <div className="space-y-8">
-      <Link href="/app" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft className="size-4" /> Overview</Link>
+      <Link href="/app" className="inline-flex min-h-11 items-center gap-1.5 text-[15px] font-medium text-muted hover:text-ink"><ArrowLeft className="size-4" /> Home</Link>
       <TaskLive initial={d} />
     </div>
   );

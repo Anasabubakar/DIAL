@@ -6,7 +6,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <AppNav who={s.email ?? s.userId} />
-      <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 sm:px-8">{children}</main>
+      <main id="main" className="mx-auto max-w-6xl px-5 pb-24 pt-10 sm:px-8">{children}</main>
     </>
   );
 }

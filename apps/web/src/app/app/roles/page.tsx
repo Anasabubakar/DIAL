@@ -10,16 +10,16 @@ export default async function RolesPage() {
   const me = await api<Me>(await requireSession(), "/v1/me");
   return (
     <div className="space-y-10">
-      <div><p className="eyebrow">Opportunities</p><h1 className="font-display mt-2 text-5xl">Saved roles</h1>
-        <p className="mt-3 max-w-2xl text-muted">When you call, DIAL picks from these. Keep the application email accurate; it&apos;s read back to you before anything is sent.</p></div>
+      <div><p className="eyebrow">Roles</p><h1 className="font-display mt-2 text-[clamp(2rem,4.5vw,3rem)]">Roles you're after</h1>
+        <p className="mt-3 max-w-2xl text-muted">When you call, Dial picks from these. Check the application email. Dial reads it back before anything is sent.</p></div>
       <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_1fr]">
         <RoleForm />
         <section>
           <h2 className="eyebrow mb-4">{me.roles.length} saved</h2>
           {me.roles.length === 0 ? (
             <div className="rounded-[var(--radius-card)] border border-dashed border-line-strong px-6 py-12 text-center">
-              <Briefcase className="mx-auto mb-3 size-6 text-muted" /><p className="font-display text-2xl">No roles yet</p>
-              <p className="mx-auto mt-2 max-w-xs text-sm text-muted">Add a role and its job description. You can then prepare an application here or by phone.</p>
+              <Briefcase className="mx-auto mb-3 size-6 text-muted" /><p className="font-display text-[26px]">No roles yet.</p>
+              <p className="mx-auto mt-2 max-w-xs text-sm text-muted">Add a role and its job description, then start an application here or by phone.</p>
             </div>
           ) : (
             <ul className="space-y-4">

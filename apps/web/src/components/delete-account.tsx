@@ -9,8 +9,8 @@ export function DeleteAccount() {
   const [pending, start] = useTransition();
   return (
     <Dialog>
-      <DialogTrigger asChild><Button variant="secondary" className="border-danger/40 text-danger">Delete my data</Button></DialogTrigger>
-      <DialogContent title="Delete all your data?" description="This removes your profile, CV, roles, applications, documents and delivery records. It can't be undone. Emails already sent can't be recalled.">
+      <DialogTrigger asChild><Button variant="secondary" className="border-end/50 text-danger">Delete my data</Button></DialogTrigger>
+      <DialogContent title="Delete everything?" description="This removes your profile, CV, roles, requests, documents and delivery records. It can't be undone, and emails already sent can't be called back.">
         {err && <p role="alert" className="mb-3 text-sm text-danger">{err}</p>}
         <div className="flex justify-end gap-3">
           <DialogClose asChild><Button variant="ghost">Keep my data</Button></DialogClose>
