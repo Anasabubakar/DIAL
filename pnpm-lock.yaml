@@ -41,12 +41,21 @@ importers:
       '@dial/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
       '@fastify/rate-limit':
         specifier: ^11.2.0
         version: 11.2.0
+      '@react-pdf/renderer':
+        specifier: ^4.9.0
+        version: 4.9.0(react@19.3.0)
+      '@supabase/supabase-js':
+        specifier: ^2.117.2
+        version: 2.117.2
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@electric-sql/pglite@0.5.8)(postgres@3.4.9)
@@ -56,16 +65,27 @@ importers:
       jose:
         specifier: ^6.2.12
         version: 6.2.12
+      openai:
+        specifier: ^7.27.0
+        version: 7.27.0(zod@4.6.5)
       pino:
         specifier: ^10.3.1
         version: 10.3.1
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      resend:
+        specifier: ^6.32.0
+        version: 6.32.0
+      svix:
+        specifier: ^2.6.1
+        version: 2.6.1
       zod:
         specifier: ^4.6.5
         version: 4.6.5
-    devDependencies:
-      '@electric-sql/pglite':
-        specifier: ^0.5.8
-        version: 0.5.8
 
   apps/web:
     dependencies:
@@ -151,6 +171,33 @@ importers:
       '@dial/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
+      '@react-pdf/renderer':
+        specifier: ^4.9.0
+        version: 4.9.0(react@19.3.0)
+      '@supabase/supabase-js':
+        specifier: ^2.117.2
+        version: 2.117.2
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@electric-sql/pglite@0.5.8)(postgres@3.4.9)
+      openai:
+        specifier: ^7.27.0
+        version: 7.27.0(zod@4.6.5)
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      resend:
+        specifier: ^6.32.0
+        version: 6.32.0
+      svix:
+        specifier: ^2.6.1
+        version: 2.6.1
       zod:
         specifier: ^4.6.5
         version: 4.6.5

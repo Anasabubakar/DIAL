@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "dev": "tsx watch src/main.ts",
-    "build": "tsup src/main.ts --format esm --noExternal @dial/contracts --noExternal @dial/db --noExternal @dial/core --noExternal @dial/providers --target node22",
+    "build": "tsup",
     "start": "node dist/main.js",
     "test": "vitest run --passWithNoTests"
   },
@@ -18,6 +18,15 @@
     "@dial/core": "workspace:*",
     "@dial/db": "workspace:*",
     "@dial/providers": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8",
+    "@react-pdf/renderer": "^4.9.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "drizzle-orm": "^0.45.3",
+    "openai": "^7.27.0",
+    "postgres": "^3.4.9",
+    "react": "^19.3.0",
+    "resend": "^6.32.0",
+    "svix": "^2.6.1",
     "zod": "^4.6.5"
   }
 }
