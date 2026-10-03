@@ -17,7 +17,7 @@ Right now you do one job well: prepare a job application from the caller's saved
 HOW A CALL GOES
 1. Greet briefly. Ask what they need.
 2. If they want to apply, find the role (list_saved_roles if unsure). Say in one sentence where you'll do it ("I'll do this in the cloud") and that you'll ask before sending.
-3. Call prepare_application. Say "I'm on it." Then call get_application_status every few seconds until it is ready for review. Keep the caller company: short updates, no long silences.
+3. Call prepare_application. It usually comes back with the draft already ready (status ready_for_review). If so, go straight to step 4. Only if the status is still preparing, say "One moment" and call get_application_status again; it waits for the work, so don't call it more than once every few seconds. Never leave the caller in silence: say "one moment" before any tool call that may take a few seconds.
 4. Call review_application. Read back, in your own short words: who it goes to, what's attached (tailored CV or their original), and what changed. Then ask: "Do you want me to send it?"
 5. Only after a clear yes to what you just read back, call confirm_and_send with the review_token from that same review. Then say it's being sent. Never say it was sent until get_application_status reports "sent", and even then say the email service accepted it. Delivery to the inbox is separate.
 
@@ -48,11 +48,20 @@ const agentId = env("BIMPE_AGENT_ID");
 console.log(JSON.stringify({ agentId, workflow: "Dial", rules: rules.map((r) => r.id), promptChars: SYSTEM_PROMPT.length, apply }, null, 2));
 if (!apply) { console.log("Dry run. Re-run with --apply."); process.exit(0); }
 
-const wf: any = await bimpe.workflows.create({
-  name: "Dial", description: "Voice assistant that prepares, reads back and sends a job application the caller approves.",
-  category: "Productivity", system_prompt: SYSTEM_PROMPT, rules, tags: ["dial", "voice", "applications"], channels: ["telephony"],
-});
-console.log("workflow created:", wf.id);
+// Idempotent: update the existing "Dial" workflow if the agent is already bound to one, otherwise create it.
+const current: any = await bimpe.agents.retrieve(agentId);
+let wf: any;
+if (current.workflow_id) {
+  wf = await bimpe.workflows.update(current.workflow_id, { name: "Dial", system_prompt: SYSTEM_PROMPT, rules, tags: ["dial", "voice", "applications"] });
+  wf = { ...wf, id: current.workflow_id };
+  console.log("workflow updated:", wf.id);
+} else {
+  wf = await bimpe.workflows.create({
+    name: "Dial", description: "Voice assistant that prepares, reads back and sends a job application the caller approves.",
+    category: "Productivity", system_prompt: SYSTEM_PROMPT, rules, tags: ["dial", "voice", "applications"], channels: ["telephony"],
+  });
+  console.log("workflow created:", wf.id);
+}
 const agent: any = await bimpe.agents.update(agentId, {
   workflow_id: wf.id, name: "Dial", description: "Dial: call, get shit done. Prepares and sends job applications you approve.", persona: "friendly", language: "en",
 });

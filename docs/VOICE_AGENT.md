@@ -27,8 +27,8 @@ Unknown body fields are rejected. Rate limits apply per route.
 | Tool | Body | Returns (`data`) |
 |---|---|---|
 | `list_saved_roles` | `{}` | `roles[{role_id,title,company}]` |
-| `prepare_application` | `{role_id?, role_hint?, use_original_cv?, mode?}` | `task_id`, `status` (returns at once; repeated calls reuse the active task). `mode:"laptop"` creates nothing and returns `status:"blocked"`, `cloud_available` and a spoken offer to use the cloud instead |
-| `get_application_status` | `{task_id}` | `status` (`preparing`, `ready_for_review`, `sending`, `sent`, `send_uncertain`, `failed`, `cancelled`), `delivery` |
+| `prepare_application` | `{role_id?, role_hint?, use_original_cv?, mode?}` | `task_id`, `status`. Does the work inside the request (bounded ~12 s) so it normally returns `ready_for_review`; repeated calls reuse the active task. `mode:"laptop"` creates nothing and returns `status:"blocked"`, `cloud_available` and a spoken offer to use the cloud instead |
+| `get_application_status` | `{task_id}` (processes queued work for up to ~9 s first) | `status` (`preparing`, `ready_for_review`, `sending`, `sent`, `send_uncertain`, `failed`, `cancelled`), `delivery` |
 | `revise_application` | `{task_id, instruction, use_original_cv?}` | `status:"preparing"`; invalidates any earlier review |
 | `review_application` | `{task_id}` | `review_token` (10 min), `recipient`, `subject`, `attachment`, `version` |
 | `confirm_and_send` | `{task_id, review_token}` | `status`. Queues the send; never says "sent". Idempotent |

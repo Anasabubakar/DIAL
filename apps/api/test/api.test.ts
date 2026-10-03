@@ -189,3 +189,28 @@ describe("serverless job draining", () => {
     delete process.env.CRON_SECRET;
   });
 });
+
+describe("serverless: phone tools finish the work inside the request", () => {
+  test("prepare returns ready, and confirm returns the real outcome, with no background worker", async () => {
+    const cfg = loadConfig({ NODE_ENV: "test", DEV_AUTH: "true", VOICE_MODE: "demo", VOICE_TOOL_TOKEN: VOICE, VOICE_DEMO_USER_ID: "demo" });
+    const h = await createDb({ dataDir: "memory://" });
+    await migrate(h, MIGRATIONS_DIR);
+    const email = new SandboxEmail();
+    const svc = new DialService({ db: h.db, storage: new MemoryStorage(), drafter: new SimulatedDrafter(), email, cfg: { emailFrom: cfg.EMAIL_FROM, reviewSecret: cfg.reviewSecret, downloadSecret: cfg.downloadSecret } });
+    const app = await buildApp({ cfg, svc, db: h.db, email, drain: async () => { let n = 0; while (await processNext(h.db, svc, "t", { backoffMs: 0 })) n++; return n; } });
+    await svc.saveProfile("demo", PROFILE, true); await svc.saveRole("demo", ROLE);
+    const call = async (tool: string, body: object) => (await app.inject({ method: "POST", url: `/v1/voice/tools/${tool}`, headers: { authorization: `Bearer ${VOICE}` }, payload: body })).json();
+    const prep = await call("prepare_application", {});
+    expect(prep.data.status).toBe("ready_for_review"); // one call, no polling
+    expect(prep.spoken).toMatch(/ready/);
+    const rev = await call("review_application", { task_id: prep.data.task_id });
+    const conf = await call("confirm_and_send", { task_id: prep.data.task_id, review_token: rev.data.review_token });
+    expect(conf.data.status).toBe("sent");
+    expect(conf.spoken).toMatch(/accepted/);
+    expect(conf.spoken).toMatch(/isn't confirmed/);
+    expect(email.sent).toHaveLength(1);
+    const again = await call("confirm_and_send", { task_id: prep.data.task_id, review_token: rev.data.review_token });
+    expect(again.ok).toBe(true);
+    expect(email.sent).toHaveLength(1); // no duplicate
+  });
+});

@@ -134,7 +134,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     const r = await svc.prepareApplication(await user(req), b);
     return { taskId: r.task.id, reused: r.reused };
   });
-  app.get("/v1/tasks/:id", async (req) => svc.taskDetail(await user(req), (req.params as { id: string }).id));
+  app.get("/v1/tasks/:id", async (req) => {
+    const userId = await user(req), id = (req.params as { id: string }).id;
+    await settle(userId, id, 8_000); // process queued work inline when there's no standing worker
+    return svc.taskDetail(userId, id);
+  });
   app.post("/v1/tasks/:id/revise", lim(20), async (req) => {
     const b = z.object({ instruction: z.string().max(500).optional(), useOriginalCv: z.boolean().optional() }).parse(req.body);
     await svc.reviseApplication(await user(req), (req.params as { id: string }).id, b);
@@ -173,7 +177,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     req.raw.on("close", () => { closed = true; });
     while (!closed) {
       try {
-        const d = await svc.taskDetail(userId, id);
+        let d = await svc.taskDetail(userId, id);
+        if (deps.drain && NON_TERMINAL.has(d.task.status)) { await deps.drain(4_000); d = await svc.taskDetail(userId, id); }
         const sig = `${d.task.status}:${d.events.length}:${d.attempt?.deliveryStatus}`;
         if (sig !== last) { last = sig; reply.raw.write(`event: task\ndata: ${JSON.stringify(d)}\n\n`); }
         else reply.raw.write(": ping\n\n");
@@ -199,13 +204,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     const callSessionId = await svc.ensureCallSession(userId, "voice-demo", fp);
     return reply.send(await run(args, { userId, callSessionId, fp }));
   };
-  const V = (name: string, max: number) => ({ url: `/v1/voice/tools/${name}`, ...lim(max) });
+  /**
+   * Serverless hosts freeze a function once it has answered, so background work stalls. Instead, a request that depends on
+   * queued work processes it inline for a bounded time, then reports the true state. With a standing worker (no `drain`) this is a no-op.
+   */
+  const NON_TERMINAL = new Set(["preparing", "sending", "send_uncertain"]);
+  const settle = async (userId: string, taskId: string, ms: number) => {
+    let s = await svc.getStatus(userId, taskId);
+    if (deps.drain && NON_TERMINAL.has(s.task.status)) { await deps.drain(ms); s = await svc.getStatus(userId, taskId); }
+    return s;
+  };
 
   app.post("/v1/voice/tools/list_saved_roles", lim(60), async (req, reply) => voice(req, reply, ListSavedRolesArgs, async (_a, { userId }) => {
     const rs = await svc.listRoles(userId);
     return { ok: true, spoken: rs.length ? `You have ${rs.length} saved ${rs.length === 1 ? "role" : "roles"}: ${rs.map((r) => `${r.title} at ${r.company}`).join("; ")}.` : "You don't have any saved roles yet.", data: { roles: rs.map((r) => ({ role_id: r.id, title: r.title, company: r.company })) } };
   }));
-  void V;
   app.post("/v1/voice/tools/prepare_application", lim(20), async (req, reply) => voice(req, reply, PrepareApplicationArgs, async (a, { userId, callSessionId }) => {
     // "Use my laptop" can't run today. Say so, and offer the cloud only if it can really do the job.
     if (a.mode === "laptop") {
@@ -220,15 +233,29 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
     const role = await svc.resolveRole(userId, a.role_id, a.role_hint);
     const { task, reused } = await svc.prepareApplication(userId, { roleId: role.id, useOriginalCv: a.use_original_cv, callSessionId });
-    return { ok: true, spoken: reused ? `I'm already working on your ${role.company} application.` : `Okay, I'm preparing your application for ${role.title} at ${role.company}. Ask me for the status in a few seconds.`, data: { task_id: task.id, status: task.status } };
+    const s = await settle(userId, task.id, 12_000);
+    const ready = s.task.status === "ready_for_review";
+    return {
+      ok: true,
+      spoken: ready ? `Your application for ${role.title} at ${role.company} is ready. Want me to read back what I'd send?`
+        : s.task.status === "preparing" ? (reused ? `I'm still working on your ${role.company} application.` : `I'm on it. I'm preparing your ${role.company} application. Ask me for the status in a moment.`) : s.spoken,
+      data: { task_id: task.id, status: s.task.status },
+    };
   }));
   app.post("/v1/voice/tools/get_application_status", lim(120), async (req, reply) => voice(req, reply, GetApplicationStatusArgs, async (a, { userId }) => {
-    const s = await svc.getStatus(userId, a.task_id);
+    const s = await settle(userId, a.task_id, 9_000);
     return { ok: true, spoken: s.spoken, data: { task_id: a.task_id, status: s.task.status, delivery: s.attempt?.deliveryStatus ?? "none" } };
   }));
   app.post("/v1/voice/tools/revise_application", lim(20), async (req, reply) => voice(req, reply, ReviseApplicationArgs, async (a, { userId }) => {
     await svc.reviseApplication(userId, a.task_id, { instruction: a.use_original_cv && a.instruction.length < 3 ? undefined : a.instruction, useOriginalCv: a.use_original_cv });
-    return { ok: true, spoken: a.use_original_cv ? "Done, I'm switching to your original CV. Any earlier approval no longer applies." : "Okay, I'm updating the draft. Any earlier approval no longer applies.", data: { task_id: a.task_id, status: "preparing" } };
+    const s = await settle(userId, a.task_id, 12_000);
+    const ready = s.task.status === "ready_for_review";
+    return {
+      ok: true,
+      spoken: ready ? (a.use_original_cv ? "Done. I've switched to your original CV. Any earlier approval no longer applies. Want me to read it back?" : "Done. I've updated the draft. Any earlier approval no longer applies. Want me to read it back?")
+        : s.task.status === "preparing" ? "I'm updating the draft. Any earlier approval no longer applies. Ask me for the status in a moment." : s.spoken,
+      data: { task_id: a.task_id, status: s.task.status },
+    };
   }));
   app.post("/v1/voice/tools/review_application", lim(30), async (req, reply) => voice(req, reply, ReviewApplicationArgs, async (a, { userId }) => {
     const r = await svc.reviewApplication(userId, a.task_id);
@@ -243,7 +270,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       kind: "voice-tool-invocation", callSessionId, tokenFingerprint: fp, at: new Date().toISOString(),
       note: "Platform provides no caller audio or per-call identity; this records that the agent invoked the tool with a valid review token.",
     });
-    return { ok: true, spoken: r.alreadyQueued ? "That one is already on its way. Ask me for the status if you like." : "Approved. I'm sending it now. I'll tell you once the email service has accepted it.", data: { task_id: a.task_id, status: r.task.status } };
+    // Do the send now so the caller hears the real outcome. "Sent" is only claimed once the email service has accepted it.
+    const s = await settle(userId, a.task_id, 9_000);
+    const accepted = s.task.status === "sent";
+    return {
+      ok: true,
+      spoken: accepted ? "Done. The email service has accepted it. Whether it reached the inbox isn't confirmed yet."
+        : r.alreadyQueued ? "That one is already on its way. Ask me for the status if you like." : "Approved. I'm sending it now. Ask me for the status in a moment.",
+      data: { task_id: a.task_id, status: s.task.status },
+    };
   }));
 
   return app;
