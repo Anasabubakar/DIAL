@@ -1,0 +1,21 @@
+{
+  "name": "@dial/providers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@dial/contracts": "workspace:*",
+    "@supabase/supabase-js": "^2.117.2",
+    "openai": "^7.27.0",
+    "resend": "^6.32.0",
+    "svix": "^2.6.1",
+    "zod": "^4.6.5"
+  }
+}
