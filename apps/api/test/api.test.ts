@@ -165,3 +165,27 @@ describe("execution modes and integrations", () => {
     expect(await svc.listTasks("demo")).toHaveLength(0);
   });
 });
+
+describe("serverless job draining", () => {
+  test("mutating requests kick the queue; /internal/tick is secret-protected and drains", async () => {
+    process.env.CRON_SECRET = "c".repeat(40);
+    const cfg = loadConfig({ NODE_ENV: "test", DEV_AUTH: "true" });
+    const h = await createDb({ dataDir: "memory://" });
+    await migrate(h, MIGRATIONS_DIR);
+    const email = new SandboxEmail();
+    const svc = new DialService({ db: h.db, storage: new MemoryStorage(), drafter: new SimulatedDrafter(), email, cfg: { emailFrom: cfg.EMAIL_FROM, reviewSecret: cfg.reviewSecret, downloadSecret: cfg.downloadSecret } });
+    let kicks = 0;
+    const app = await buildApp({ cfg, svc, db: h.db, email, kick: () => { kicks++; }, drain: async (ms) => { let n = 0; while (await processNext(h.db, svc, "t", { backoffMs: 0 })) n++; void ms; return n; } });
+    const hd = { "x-dev-user": "k1" };
+    await app.inject({ method: "PUT", url: "/v1/profile", headers: hd, payload: { profile: PROFILE, confirmReviewed: true } });
+    const role = (await app.inject({ method: "POST", url: "/v1/roles", headers: hd, payload: ROLE })).json();
+    const { taskId } = (await app.inject({ method: "POST", url: "/v1/tasks", headers: hd, payload: { roleId: role.id } })).json();
+    expect(kicks).toBeGreaterThan(0);
+    expect((await app.inject({ method: "GET", url: "/internal/tick" })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: "/internal/tick", headers: { authorization: "Bearer wrong" } })).statusCode).toBe(404);
+    const ok = await app.inject({ method: "GET", url: "/internal/tick", headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+    expect(ok.json().processed).toBeGreaterThanOrEqual(1);
+    expect((await app.inject({ method: "GET", url: `/v1/tasks/${taskId}`, headers: hd })).json().task.status).toBe("ready_for_review");
+    delete process.env.CRON_SECRET;
+  });
+});

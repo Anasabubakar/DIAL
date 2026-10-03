@@ -11,7 +11,8 @@
     "dev": "tsx watch src/main.ts",
     "build": "tsup",
     "start": "node dist/main.js",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "build:vercel": "tsup --config tsup.vercel.config.ts"
   },
   "dependencies": {
     "@dial/contracts": "workspace:*",
@@ -23,6 +24,7 @@
     "@fastify/rate-limit": "^11.2.0",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.117.2",
+    "@vercel/functions": "^3.9.10",
     "drizzle-orm": "^0.45.3",
     "fastify": "^5.12.5",
     "jose": "^6.2.12",

@@ -10,7 +10,7 @@ export interface DbHandle { db: Db; close(): Promise<void>; kind: "pglite" | "po
 export async function createDb(opts: { url?: string; dataDir?: string } = {}): Promise<DbHandle> {
   if (opts.url) {
     const postgres = (await import("postgres")).default;
-    const client = postgres(opts.url, { max: 10, prepare: false });
+    const client = postgres(opts.url, { max: process.env.VERCEL ? 1 : 10, prepare: false });
     return { db: drizzlePg(client, { schema }) as unknown as Db, close: () => client.end(), kind: "postgres" };
   }
   const { PGlite } = await import("@electric-sql/pglite");

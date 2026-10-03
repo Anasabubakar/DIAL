@@ -7,14 +7,20 @@ import {
   ConfirmAndSendArgs, GetApplicationStatusArgs, ListSavedRolesArgs, PrepareApplicationArgs, ReviewApplicationArgs, ReviseApplicationArgs,
   type ToolResult,
 } from "@dial/contracts";
-import { DialError, describeIntegrations, type DialService } from "@dial/core";
+import { DialError, describeIntegrations, safeEqual, type DialService } from "@dial/core";
 import type { Db } from "@dial/db";
 import type { EmailProvider } from "@dial/providers";
 import { sql } from "drizzle-orm";
 import { makeAuth } from "./auth";
 import type { Config } from "@dial/core";
 
-export interface AppDeps { cfg: Config; svc: DialService; db: Db; email: EmailProvider }
+export interface AppDeps {
+  cfg: Config; svc: DialService; db: Db; email: EmailProvider;
+  /** Serverless only: nudge job processing after a request. Omitted when a worker process runs the queue. */
+  kick?: () => void;
+  /** Serverless only: drain due jobs for up to `ms`. Powers /internal/tick. */
+  drain?: (ms: number) => Promise<number>;
+}
 
 const REDACT = ["req.headers.authorization", "req.headers.cookie", "req.headers['x-api-key']", "req.headers['x-dev-user']"];
 
@@ -31,6 +37,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cors, { origin: cfg.WEB_ORIGIN.split(","), credentials: false });
   await app.register(rateLimit, { global: true, max: 120, timeWindow: "1 minute" });
   app.addHook("onSend", async (req, reply) => { reply.header("x-request-id", req.id); reply.header("cache-control", "no-store"); });
+  // Anything that may have queued work (or is waiting on a retry) gives the queue a push when there is no standing worker.
+  app.addHook("onResponse", async (req, reply) => {
+    if (!deps.kick || reply.statusCode >= 500) return;
+    if (req.method === "POST" || req.url.startsWith("/v1/tasks/") || req.url.includes("get_application_status")) deps.kick();
+  });
   app.addContentTypeParser("application/pdf", { parseAs: "buffer" }, (_r, body, done) => done(null, body));
   // Raw body is needed for webhook signature verification.
   app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
@@ -56,6 +67,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   const user = (req: FastifyRequest) => auth.webUser(req);
   const lim = (max: number) => ({ config: { rateLimit: { max, timeWindow: "1 minute" } } });
+
+  /** Scheduled drain for serverless hosting. Protected by CRON_SECRET (Vercel sends it as a Bearer token). */
+  app.get("/internal/tick", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const secret = process.env.CRON_SECRET;
+    const got = (req.headers.authorization ?? "").replace(/^Bearer /, "");
+    if (!deps.drain || !secret || got.length !== secret.length || !safeEqual(got, secret)) return reply.code(404).send({ error: "not_found" });
+    return { processed: await deps.drain(50_000) };
+  });
 
   /* ---------------- health ---------------- */
   app.get("/healthz", async () => ({ ok: true }));
