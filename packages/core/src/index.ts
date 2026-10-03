@@ -4,3 +4,5 @@ export * from "./pdf";
 export * from "./service";
 export * from "./util";
 export * from "./worker";
+export * from "./config";
+export * from "./wiring";

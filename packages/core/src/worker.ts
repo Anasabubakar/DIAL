@@ -20,3 +20,14 @@ export async function processNext(db: Db, svc: DialService, workerId: string, op
   }
   return true;
 }
+
+/** Polls for jobs until `signal.stopping` is set. Finishes the current job before returning (graceful shutdown). */
+export async function runWorkerLoop(db: Db, svc: DialService, workerId: string, state: { stopping: boolean; lastTick: number }, opts: { pollMs?: number; leaseMs?: number } = {}) {
+  while (!state.stopping) {
+    state.lastTick = Date.now();
+    let did = false;
+    try { did = await processNext(db, svc, workerId, { leaseMs: opts.leaseMs ?? 90_000 }); }
+    catch (e) { console.error(JSON.stringify({ msg: "worker loop error", error: e instanceof Error ? e.message : String(e) })); }
+    if (!did) await new Promise((r) => setTimeout(r, opts.pollMs ?? 1000));
+  }
+}

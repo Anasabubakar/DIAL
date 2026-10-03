@@ -1,0 +1,10 @@
+# Local development with real Postgres, so API and worker can run as separate processes.
+services:
+  db:
+    image: postgres:17
+    environment: { POSTGRES_PASSWORD: dial, POSTGRES_DB: dial }
+    ports: ["54329:5432"]
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 3s, retries: 20 }
+volumes:
+  dbdata:
