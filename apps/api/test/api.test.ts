@@ -124,3 +124,44 @@ describe("email webhook", () => {
     expect((await post(email.sign(body))).json().duplicate).toBe(true);
   });
 });
+
+describe("execution modes and integrations", () => {
+  test("plan endpoint reports laptop as blocked and offers cloud only when ready", async () => {
+    const { app, web } = await make();
+    const h = (u: string) => ({ "x-dev-user": u });
+    await app.inject({ method: "PUT", url: "/v1/profile", headers: h("p1"), payload: { profile: PROFILE, confirmReviewed: true } });
+    await app.inject({ method: "POST", url: "/v1/roles", headers: h("p1"), payload: ROLE });
+    const laptop = (await app.inject({ method: "POST", url: "/v1/plan", headers: h("p1"), payload: { mode: "laptop" } })).json();
+    expect(laptop).toMatchObject({ mode: null, status: "blocked", alternative: { mode: "cloud" } });
+    const cloud = (await app.inject({ method: "POST", url: "/v1/plan", headers: h("p1"), payload: {} })).json();
+    expect(cloud).toMatchObject({ mode: "cloud", status: "ready" });
+    const fresh = (await app.inject({ method: "POST", url: "/v1/plan", headers: h("p-new"), payload: { mode: "laptop" } })).json();
+    expect(fresh.alternative).toBeNull();
+    void web;
+  });
+  test("starting a laptop task over the API is refused and nothing is created", async () => {
+    const { app } = await make();
+    const h = { "x-dev-user": "p2" };
+    await app.inject({ method: "PUT", url: "/v1/profile", headers: h, payload: { profile: PROFILE, confirmReviewed: true } });
+    const role = (await app.inject({ method: "POST", url: "/v1/roles", headers: h, payload: ROLE })).json();
+    const r = await app.inject({ method: "POST", url: "/v1/tasks", headers: h, payload: { roleId: role.id, mode: "laptop" } });
+    expect(r.statusCode).toBe(409);
+    expect((await app.inject({ method: "GET", url: "/v1/tasks", headers: h })).json()).toHaveLength(0);
+  });
+  test("integrations are truthful: planned ones have no scopes or revoke, email test setup is flagged", async () => {
+    const { app } = await make();
+    const cards = (await app.inject({ method: "GET", url: "/v1/integrations", headers: { "x-dev-user": "p3" } })).json() as { id: string; state: string; scopes: string[]; error: string | null }[];
+    expect(cards.find((c) => c.id === "drive")).toMatchObject({ state: "planned", scopes: [] });
+    expect(cards.find((c) => c.id === "email")).toMatchObject({ state: "test" });
+    expect(cards.find((c) => c.id === "email")!.error).toMatch(/Test setup/);
+  });
+  test("voice: 'use my laptop' gets an honest answer and creates no task", async () => {
+    const { voice, svc } = await make();
+    await svc.saveProfile("demo", PROFILE, true); await svc.saveRole("demo", ROLE);
+    const r = (await voice("prepare_application", { mode: "laptop" })).json();
+    expect(r.ok).toBe(true);
+    expect(r.spoken).toMatch(/can't reach your laptop/);
+    expect(r.data).toMatchObject({ status: "blocked", cloud_available: true });
+    expect(await svc.listTasks("demo")).toHaveLength(0);
+  });
+});

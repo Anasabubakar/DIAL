@@ -49,3 +49,29 @@ describe("service guard", () => {
     expect(task.executionMode).toBe("cloud");
   });
 });
+
+import { describeIntegrations } from "../src";
+describe("integrations registry", () => {
+  const ctx = { voice: { mode: "demo" as const, phoneNumber: null, isDemoUser: true }, email: { provider: "resend", simulated: false, from: "Dial <apply@x.dev>", restrictedTo: null, replyTo: "me@x.dev" } };
+  test("only what's built can be connected; nothing planned has scopes or revoke controls", () => {
+    const cards = describeIntegrations(ctx);
+    for (const id of ["gmail", "drive", "calendar", "zapier", "laptop"]) {
+      const c = cards.find((x) => x.id === id)!;
+      expect(c.state).toBe("planned");
+      expect(c.scopes).toEqual([]);
+      expect(c.disconnect.supported).toBe(false);
+      expect(c.can).toEqual([]);
+    }
+  });
+  test("phone is waiting without a number, connected with one, off when disabled", () => {
+    expect(describeIntegrations(ctx).find((c) => c.id === "phone")!.state).toBe("waiting");
+    expect(describeIntegrations({ ...ctx, voice: { ...ctx.voice, phoneNumber: "+234 1" } }).find((c) => c.id === "phone")!.state).toBe("connected");
+    expect(describeIntegrations({ ...ctx, voice: { ...ctx.voice, mode: "disabled" } }).find((c) => c.id === "phone")!.state).toBe("off");
+  });
+  test("simulated email is flagged as a test and carries an error note", () => {
+    const e = describeIntegrations({ ...ctx, email: { ...ctx.email, simulated: true } }).find((c) => c.id === "email")!;
+    expect(e).toMatchObject({ state: "test" });
+    expect(e.error).toMatch(/Test setup/);
+    expect(e.cannot.join(" ")).toMatch(/Read your inbox/);
+  });
+});

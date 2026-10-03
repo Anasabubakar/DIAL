@@ -7,7 +7,7 @@ import {
   ConfirmAndSendArgs, GetApplicationStatusArgs, ListSavedRolesArgs, PrepareApplicationArgs, ReviewApplicationArgs, ReviseApplicationArgs,
   type ToolResult,
 } from "@dial/contracts";
-import { DialError, type DialService } from "@dial/core";
+import { DialError, describeIntegrations, type DialService } from "@dial/core";
 import type { Db } from "@dial/db";
 import type { EmailProvider } from "@dial/providers";
 import { sql } from "drizzle-orm";
@@ -69,6 +69,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     };
   });
 
+  /** The honest picture of what Dial is connected to. Server-driven so the dashboard can't overclaim. */
+  app.get("/v1/integrations", async (req) => {
+    const userId = await user(req);
+    const profile = await svc.getProfile(userId);
+    return describeIntegrations({
+      voice: { mode: cfg.VOICE_MODE, phoneNumber: process.env.PUBLIC_PHONE_NUMBER ?? null, isDemoUser: cfg.VOICE_MODE === "demo" && cfg.VOICE_DEMO_USER_ID === userId },
+      email: { provider: deps.email.name, simulated: deps.email.simulated, from: cfg.EMAIL_FROM, restrictedTo: cfg.CONTROLLED_RECIPIENT ?? null, replyTo: profile?.email ?? null },
+    });
+  });
+  /** Where a request would run, what it needs, and what Dial will ask about first. Never starts anything. */
+  app.post("/v1/plan", lim(60), async (req) => {
+    const b = z.object({ roleId: z.string().optional(), useOriginalCv: z.boolean().optional(), mode: z.enum(["cloud", "laptop"]).optional() }).parse(req.body ?? {});
+    return svc.planFor(await user(req), b);
+  });
+
   /* ---------------- web: profile / cv / roles ---------------- */
   app.get("/v1/me", async (req) => {
     const userId = await user(req);
@@ -96,7 +111,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   /* ---------------- web: tasks ---------------- */
   app.get("/v1/tasks", async (req) => svc.listTasks(await user(req)));
   app.post("/v1/tasks", lim(20), async (req) => {
-    const b = z.object({ roleId: z.string(), useOriginalCv: z.boolean().optional() }).parse(req.body);
+    const b = z.object({ roleId: z.string(), useOriginalCv: z.boolean().optional(), mode: z.enum(["cloud", "laptop"]).optional() }).parse(req.body);
     const r = await svc.prepareApplication(await user(req), b);
     return { taskId: r.task.id, reused: r.reused };
   });
@@ -173,6 +188,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   }));
   void V;
   app.post("/v1/voice/tools/prepare_application", lim(20), async (req, reply) => voice(req, reply, PrepareApplicationArgs, async (a, { userId, callSessionId }) => {
+    // "Use my laptop" can't run today. Say so, and offer the cloud only if it can really do the job.
+    if (a.mode === "laptop") {
+      const plan = await svc.planFor(userId, { mode: "laptop", useOriginalCv: a.use_original_cv });
+      return {
+        ok: true, needs_choice: !!plan.alternative,
+        spoken: plan.alternative
+          ? "I can't reach your laptop. I can do this one in the cloud with the profile and CV you gave me, but I can't open anything on your laptop. Want me to do it in the cloud?"
+          : "I can't reach your laptop, and I'm not set up to do this one in the cloud yet. Check your profile and saved role on the web first.",
+        data: { status: "blocked", mode: "laptop", cloud_available: !!plan.alternative },
+      } as ToolResult;
+    }
     const role = await svc.resolveRole(userId, a.role_id, a.role_hint);
     const { task, reused } = await svc.prepareApplication(userId, { roleId: role.id, useOriginalCv: a.use_original_cv, callSessionId });
     return { ok: true, spoken: reused ? `I'm already working on your ${role.company} application.` : `Okay, I'm preparing your application for ${role.title} at ${role.company}. Ask me for the status in a few seconds.`, data: { task_id: task.id, status: task.status } };
