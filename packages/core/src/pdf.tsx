@@ -5,8 +5,8 @@ import type { ProfileInput } from "@dial/contracts";
 
 const styles = StyleSheet.create({
   page: { paddingTop: 48, paddingBottom: 56, paddingHorizontal: 54, fontFamily: "Helvetica", fontSize: 10, color: "#171918", lineHeight: 1.45 },
-  name: { fontSize: 22, fontFamily: "Helvetica-Bold", marginBottom: 2 },
-  headline: { fontSize: 11, color: "#355E4B", marginBottom: 2 },
+  name: { fontSize: 22, lineHeight: 1.15, fontFamily: "Helvetica-Bold", marginBottom: 6 },
+  headline: { fontSize: 11, lineHeight: 1.3, color: "#355E4B", marginBottom: 4 },
   contact: { fontSize: 9, color: "#69706C", marginBottom: 14 },
   h: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 1.2, color: "#355E4B", textTransform: "uppercase", marginTop: 14, marginBottom: 6, borderBottomWidth: 0.75, borderBottomColor: "#E4E6E0", paddingBottom: 3 },
   row: { flexDirection: "row", justifyContent: "space-between" },
@@ -20,7 +20,8 @@ const styles = StyleSheet.create({
 });
 
 // Standard PDF fonts only cover Latin-1; strip control characters and anything unrenderable.
-const clean = (s: string) => s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/[^ -ÿ\n]/g, "?");
+const typographic: Record<string, string> = { "\u2013": "-", "\u2014": "-", "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2026": "...", "\u00A0": " " };
+const clean = (s: string) => s.replace(/[\u2013\u2014\u2018\u2019\u201C\u201D\u2026\u00A0]/g, (c) => typographic[c] ?? c).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/[^ -ÿ\n]/g, "?");
 
 export interface CvInput { profile: ProfileInput; selectedEntryIds: string[]; wording: { entryId: string; bullets: string[] }[] }
 
