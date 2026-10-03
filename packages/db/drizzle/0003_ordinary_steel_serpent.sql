@@ -1,0 +1,1 @@
+ALTER TABLE "tasks" ADD COLUMN "execution_mode" text DEFAULT 'cloud' NOT NULL;

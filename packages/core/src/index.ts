@@ -6,3 +6,4 @@ export * from "./util";
 export * from "./worker";
 export * from "./config";
 export * from "./wiring";
+export * from "./plan";

@@ -24,6 +24,10 @@ export const TASK_TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
   cancelled: [],
 };
 
+/** Where a request runs. Only "cloud" can execute today; "laptop" needs a local companion that doesn't exist yet. */
+export const ExecutionMode = z.enum(["cloud", "laptop"]);
+export type ExecutionMode = z.infer<typeof ExecutionMode>;
+
 export const DeliveryStatus = z.enum(["none", "submitted", "delivered", "delayed", "bounced"]);
 export type DeliveryStatus = z.infer<typeof DeliveryStatus>;
 
@@ -76,7 +80,7 @@ export type DraftOutput = z.infer<typeof DraftOutput>;
 
 export const ListSavedRolesArgs = z.object({}).strict();
 export const PrepareApplicationArgs = z
-  .object({ role_id: z.string().min(1).max(64).optional(), role_hint: z.string().max(200).optional(), use_original_cv: z.boolean().optional() })
+  .object({ role_id: z.string().min(1).max(64).optional(), role_hint: z.string().max(200).optional(), use_original_cv: z.boolean().optional(), mode: ExecutionMode.optional() })
   .strict();
 export const GetApplicationStatusArgs = z.object({ task_id: z.string().min(1).max(64) }).strict();
 export const ReviseApplicationArgs = z

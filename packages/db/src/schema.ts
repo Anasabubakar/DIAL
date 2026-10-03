@@ -57,6 +57,7 @@ export const tasks = pgTable("tasks", {
   callSessionId: text("call_session_id"),
   status: text("status").notNull(),
   attachmentChoice: text("attachment_choice").notNull().default("tailored"),
+  executionMode: text("execution_mode").notNull().default("cloud"),
   currentVersion: integer("current_version").notNull().default(0),
   lastError: text("last_error"),
   createdAt: createdAt(),

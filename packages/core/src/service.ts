@@ -8,6 +8,7 @@ import {
 } from "@dial/contracts";
 import type { Drafter, EmailProvider, StorageProvider } from "@dial/providers";
 import { DialError } from "./errors";
+import { planApplication, type Plan } from "./plan";
 import { enqueue } from "./jobs";
 import { renderCvPdf } from "./pdf";
 import { draftContentHash, newId, sha256, signToken, verifyToken } from "./util";
@@ -18,6 +19,8 @@ export interface CoreConfig {
   reviewTtlSec?: number;
   downloadSecret: string;
   maxDraftAttempts?: number;
+  /** When set, all outbound mail is restricted to this address (shown to the user as test mode). */
+  controlledRecipient?: string | null;
 }
 export interface Deps { db: Db; storage: StorageProvider; drafter: Drafter; email: EmailProvider; cfg: CoreConfig }
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -131,7 +134,22 @@ export class DialService {
     return t;
   }
 
-  async prepareApplication(userId: string, a: { roleId: string; useOriginalCv?: boolean; callSessionId?: string }) {
+  /** The honest plan for a request: where it runs, what it needs, what it will ask about first. */
+  async planFor(userId: string, a: { roleId?: string; useOriginalCv?: boolean; mode?: "cloud" | "laptop" }): Promise<Plan> {
+    const [profile, cv, roleRows] = await Promise.all([
+      this.getProfile(userId), this.activeCv(userId),
+      a.roleId ? this.db.select().from(roles).where(and(eq(roles.id, a.roleId), eq(roles.userId, userId))) : this.listRoles(userId),
+    ]);
+    return planApplication({
+      requested: a.mode, profileConfirmed: !!profile?.verifiedAt, hasRole: roleRows.length > 0, hasCv: !!cv, useOriginalCv: !!a.useOriginalCv,
+      email: { provider: this.d.email.name, simulated: this.d.email.simulated, restrictedTo: this.d.cfg.controlledRecipient ?? null },
+      laptopOnline: false, // no laptop companion exists yet
+    });
+  }
+
+  async prepareApplication(userId: string, a: { roleId: string; useOriginalCv?: boolean; callSessionId?: string; mode?: "cloud" | "laptop" }) {
+    // Never accept a request that can't run as asked. The caller gets the plan's honest explanation instead.
+    if (a.mode === "laptop") throw new DialError("invalid_state", "I can't reach your laptop. The laptop companion isn't available yet, and a laptop that's off can't be reached from the cloud.");
     const role = (await this.db.select().from(roles).where(and(eq(roles.id, a.roleId), eq(roles.userId, userId))))[0];
     if (!role) throw new DialError("not_found", "Role not found");
     const profile = await this.getProfile(userId);
@@ -144,7 +162,7 @@ export class DialService {
 
     const id = newId("task");
     await this.db.transaction(async (tx) => {
-      await tx.insert(tasks).values({ id, userId, roleId: role.id, callSessionId: a.callSessionId, status: "preparing", attachmentChoice: a.useOriginalCv ? "original" : "tailored" });
+      await tx.insert(tasks).values({ id, userId, roleId: role.id, callSessionId: a.callSessionId, status: "preparing", attachmentChoice: a.useOriginalCv ? "original" : "tailored", executionMode: "cloud" });
       await this.ev(tx, id, "task_created", `Application for ${role.title} at ${role.company} started.`);
       await tx.insert(jobs).values({ id: newId("job"), type: "prepare", payload: { taskId: id } });
     });

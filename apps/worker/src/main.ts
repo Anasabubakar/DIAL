@@ -7,7 +7,7 @@ const cfg = loadConfig();
 const h = await createDb({ url: cfg.DATABASE_URL, dataDir: `${cfg.DATA_DIR}/pglite` });
 if (h.kind === "pglite") await migrate(h, MIGRATIONS_DIR);
 const p = buildProviders(cfg);
-const svc = new DialService({ db: h.db, ...p, cfg: { emailFrom: cfg.EMAIL_FROM, reviewSecret: cfg.reviewSecret, downloadSecret: cfg.downloadSecret } });
+const svc = new DialService({ db: h.db, ...p, cfg: { emailFrom: cfg.EMAIL_FROM, reviewSecret: cfg.reviewSecret, downloadSecret: cfg.downloadSecret, controlledRecipient: cfg.CONTROLLED_RECIPIENT ?? null } });
 
 const workerId = `worker-${randomUUID().slice(0, 8)}`;
 
