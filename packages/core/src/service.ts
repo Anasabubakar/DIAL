@@ -453,6 +453,32 @@ export class DialService {
     return { bytes: await this.d.storage.get(dr.attachmentPath), filename: dr.attachmentFilename };
   }
 
+  /**
+   * Retention: finished applications (sent/failed/cancelled) and their files are deleted after `taskDays`;
+   * call-session records after `callDays`. Safe to run repeatedly.
+   */
+  async purgeExpired(opts: { taskDays?: number; callDays?: number } = {}) {
+    const taskDays = opts.taskDays ?? 90, callDays = opts.callDays ?? 30;
+    const old = await this.db.select({ id: tasks.id }).from(tasks)
+      .where(and(inArray(tasks.status, ["sent", "failed", "cancelled"]), sql`${tasks.updatedAt} < now() - (${taskDays} * interval '1 day')`));
+    const ids = old.map((x) => x.id);
+    if (ids.length) {
+      const drafts = await this.db.select().from(draftVersions).where(inArray(draftVersions.taskId, ids));
+      for (const d of drafts) await this.d.storage.remove(d.attachmentPath).catch(() => {});
+      await this.db.transaction(async (tx) => {
+        await tx.delete(emailAttempts).where(inArray(emailAttempts.taskId, ids));
+        await tx.delete(approvals).where(inArray(approvals.taskId, ids));
+        await tx.delete(taskEvents).where(inArray(taskEvents.taskId, ids));
+        await tx.delete(draftVersions).where(inArray(draftVersions.taskId, ids));
+        for (const id of ids) await tx.delete(jobs).where(sql`${jobs.payload}->>'taskId' = ${id}`);
+        await tx.delete(tasks).where(inArray(tasks.id, ids));
+      });
+    }
+    const calls = await this.db.delete(callSessions).where(sql`${callSessions.startedAt} < now() - (${callDays} * interval '1 day')`).returning({ id: callSessions.id });
+    await this.db.delete(jobs).where(sql`${jobs.status} = 'done' AND ${jobs.createdAt} < now() - interval '7 days'`);
+    return { tasksDeleted: ids.length, callSessionsDeleted: calls.length };
+  }
+
   async deleteAccountData(userId: string) {
     const ts = await this.db.select({ id: tasks.id }).from(tasks).where(eq(tasks.userId, userId));
     const ids = ts.map((x) => x.id);

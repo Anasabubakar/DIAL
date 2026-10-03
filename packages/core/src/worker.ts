@@ -23,8 +23,14 @@ export async function processNext(db: Db, svc: DialService, workerId: string, op
 
 /** Polls for jobs until `signal.stopping` is set. Finishes the current job before returning (graceful shutdown). */
 export async function runWorkerLoop(db: Db, svc: DialService, workerId: string, state: { stopping: boolean; lastTick: number }, opts: { pollMs?: number; leaseMs?: number } = {}) {
+  let nextPurge = 0;
   while (!state.stopping) {
     state.lastTick = Date.now();
+    if (Date.now() >= nextPurge) {
+      nextPurge = Date.now() + 6 * 3600_000;
+      try { const r = await svc.purgeExpired(); if (r.tasksDeleted || r.callSessionsDeleted) console.log(JSON.stringify({ msg: "retention purge", ...r })); }
+      catch (e) { console.error(JSON.stringify({ msg: "retention purge failed", error: e instanceof Error ? e.message : String(e) })); }
+    }
     let did = false;
     try { did = await processNext(db, svc, workerId, { leaseMs: opts.leaseMs ?? 90_000 }); }
     catch (e) { console.error(JSON.stringify({ msg: "worker loop error", error: e instanceof Error ? e.message : String(e) })); }

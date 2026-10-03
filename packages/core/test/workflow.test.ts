@@ -241,3 +241,25 @@ describe("account deletion", () => {
     expect(storage.files.size).toBe(0);
   });
 });
+
+describe("retention", () => {
+  test("old finished applications and their files are purged; recent and active ones are kept", async () => {
+    const { svc, h, ready, drain, storage } = await harness();
+    const done = (await ready("u1")).taskId;
+    const r = await svc.reviewApplication("u1", done);
+    await svc.confirmAndSend("u1", done, r.token, { via: "t" });
+    await drain();
+    const role2 = await svc.saveRole("u1", { ...ROLE, company: "Other" });
+    const { task: active } = await svc.prepareApplication("u1", { roleId: role2.id });
+    await drain();
+    expect(await svc.purgeExpired()).toEqual({ tasksDeleted: 0, callSessionsDeleted: 0 });
+    const { tasks } = await import("@dial/db");
+    const { sql } = await import("drizzle-orm");
+    await h.db.update(tasks).set({ updatedAt: sql`now() - interval '91 days'` }).where(eq(tasks.id, done));
+    await h.db.update(tasks).set({ updatedAt: sql`now() - interval '91 days'` }).where(eq(tasks.id, active.id));
+    expect(await svc.purgeExpired()).toMatchObject({ tasksDeleted: 1 });
+    await expect(svc.ownedTask("u1", done)).rejects.toThrow();
+    expect((await svc.ownedTask("u1", active.id)).status).toBe("ready_for_review"); // active work is never purged
+    expect([...storage.files.keys()].some((k) => k.includes(done))).toBe(false);
+  });
+});
