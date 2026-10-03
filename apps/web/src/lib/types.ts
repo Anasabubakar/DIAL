@@ -11,7 +11,7 @@ export interface Me {
 export interface Role { id: string; title: string; company: string; description: string; applyEmail: string; createdAt: string }
 export interface TaskRow { id: string; status: string; roleTitle: string | null; company: string | null; createdAt: string; callSessionId: string | null; attachmentChoice: string }
 export interface TaskDetail {
-  task: { id: string; status: string; currentVersion: number; attachmentChoice: string; lastError: string | null; callSessionId: string | null; createdAt: string };
+  task: { id: string; status: string; currentVersion: number; attachmentChoice: string; executionMode: ExecutionMode; lastError: string | null; callSessionId: string | null; createdAt: string };
   role: Role | null;
   draft: { version: number; subject: string; body: string; recipient: string; attachmentChoice: string; attachmentFilename: string; attachmentSha256: string; changeSummary: string[]; supportingEntryIds: string[] } | null;
   versions: { version: number; attachmentChoice: string; createdAt: string }[];
@@ -20,4 +20,16 @@ export interface TaskDetail {
   approval: { draftVersion: number; createdAt: string; evidence: { kind?: string } } | null;
   simulated: boolean;
   spoken: string;
+}
+
+export type ExecutionMode = "cloud" | "laptop";
+export interface PlanNeed { label: string; met: boolean; fixHref?: string }
+export interface Plan {
+  requested: ExecutionMode; mode: ExecutionMode | null; status: "ready" | "needs_setup" | "blocked";
+  headline: string; uses: string[]; needs: PlanNeed[]; confirmations: string[]; notes: string[];
+  alternative: { mode: "cloud"; reason: string } | null;
+}
+export interface IntegrationCard {
+  id: string; name: string; kind: "dial" | "your_account" | "device"; state: "connected" | "test" | "waiting" | "off" | "planned";
+  can: string[]; cannot: string[]; scopes: string[]; disconnect: { supported: boolean; note: string }; error: string | null; detail?: string;
 }

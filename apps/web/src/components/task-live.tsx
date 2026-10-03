@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, ExternalLink, FileText, Loader2, Mail, Phone, RefreshCw, Send, Undo2, X } from "lucide-react";
+import { AlertTriangle, Check, Cloud, ExternalLink, FileText, Loader2, Mail, Phone, RefreshCw, Send, Undo2, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { DialSymbol } from "./dial-mark";
 import { Button } from "./ui/button";
@@ -53,6 +53,7 @@ export function TaskLive({ initial }: { initial: TaskDetail }) {
         </div>
         <div className="flex flex-col items-end gap-2" aria-live="polite">
           <Badge tone={st.tone} className="px-4 py-1.5 text-sm">{st.busy && <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" />}{st.label}</Badge>
+          <Badge tone="neutral"><Cloud className="size-3.5" aria-hidden /> Running in the cloud</Badge>
           {d.simulated && <Badge tone="warn">Test email setup</Badge>}
           <span className="text-sm text-muted">{!online ? "You're offline. We'll catch up when you're back." : live === "live" ? "Updating live" : live === "offline" ? "Reconnecting…" : "Connecting…"}</span>
         </div>

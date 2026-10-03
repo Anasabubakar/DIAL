@@ -19,7 +19,7 @@ test.describe.serial("applicant journey (simulated providers)", () => {
     await page.getByRole("button", { name: "Continue as this user" }).click();
     await expect(page.getByRole("heading", { name: "Tell Dial what you need." })).toBeVisible();
     await expect(page.getByText("Nothing yet.")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Prepare application/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Start in the cloud/ })).toBeDisabled();
     await shot(page, "01-overview-empty");
   });
 
@@ -57,10 +57,35 @@ test.describe.serial("applicant journey (simulated providers)", () => {
     await shot(page, "03-roles");
   });
 
+  test("laptop mode is refused honestly and cloud is offered; connections tell the truth", async ({ page }) => {
+    await login(page);
+    await page.goto("/app/roles");
+    await page.getByText("Use my laptop").click();
+    await expect(page.getByText("I can't reach your laptop.")).toBeVisible();
+    await expect(page.getByText(/off, asleep or offline/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Start in the cloud/ })).toBeDisabled();
+    await shot(page, "04a-laptop-blocked");
+    await page.getByRole("button", { name: "Use the cloud instead" }).click();
+    await expect(page.getByText("Ready to run in the cloud.")).toBeVisible();
+    await expect(page.getByText("Dial will ask before")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Start in the cloud/ })).toBeEnabled();
+
+    await page.goto("/app/settings");
+    await expect(page.getByRole("heading", { name: "What Dial can reach" })).toBeVisible();
+    for (const name of ["Google Drive", "Google Calendar", "Zapier", "Your Gmail", "Laptop companion"]) {
+      const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name }) });
+      await expect(card.getByText("Not built yet")).toBeVisible();
+      await expect(card.getByText("Nothing is connected, so there's nothing to revoke.").or(card.getByText("Nothing is paired, so there's nothing to remove."))).toBeVisible();
+    }
+    const email = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Email sending" }) });
+    await expect(email.getByText("Test setup").first()).toBeVisible();
+    await shot(page, "04b-connections");
+  });
+
   test("prepares, reviews, revises, approves and sends", async ({ page }) => {
     await login(page);
     await page.goto("/app/roles");
-    await page.getByRole("button", { name: /Prepare application/ }).click();
+    await page.getByRole("button", { name: /Start in the cloud/ }).click();
     await expect(page).toHaveURL(/\/app\/tasks\//);
     await expect(page.getByText("Ready for review").first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("jobs@paystack.test").first()).toBeVisible();

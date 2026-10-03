@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { api, ApiError, apiFetch } from "./api";
+import type { Plan } from "./types";
 import { DEV_COOKIE, devAuthEnabled, getSession, supabaseConfigured, supabaseServer } from "./session";
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -54,8 +55,11 @@ export async function deleteRole(id: string): Promise<ActionResult> {
 }
 
 /* ---- tasks ---- */
-export async function createTask(roleId: string, useOriginalCv: boolean): Promise<ActionResult<{ taskId: string }>> {
-  try { const r = await api<{ taskId: string }>(await sess(), "/v1/tasks", { method: "POST", json: { roleId, useOriginalCv } }); revalidatePath("/app", "layout"); return { ok: true, data: r }; } catch (e) { return fail(e); }
+export async function getPlan(a: { roleId?: string; useOriginalCv?: boolean; mode?: "cloud" | "laptop" }): Promise<ActionResult<Plan>> {
+  try { return { ok: true, data: await api<Plan>(await sess(), "/v1/plan", { method: "POST", json: a }) }; } catch (e) { return fail(e); }
+}
+export async function createTask(roleId: string, useOriginalCv: boolean, mode: "cloud" | "laptop" = "cloud"): Promise<ActionResult<{ taskId: string }>> {
+  try { const r = await api<{ taskId: string }>(await sess(), "/v1/tasks", { method: "POST", json: { roleId, useOriginalCv, mode } }); revalidatePath("/app", "layout"); return { ok: true, data: r }; } catch (e) { return fail(e); }
 }
 export async function reviseTask(id: string, instruction: string, useOriginalCv: boolean): Promise<ActionResult> {
   try { await api(await sess(), `/v1/tasks/${id}/revise`, { method: "POST", json: { instruction: instruction || undefined, useOriginalCv } }); return { ok: true }; } catch (e) { return fail(e); }

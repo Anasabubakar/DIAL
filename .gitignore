@@ -11,3 +11,5 @@ test-results
 .DS_Store
 .data
 screenshots
+.data-watch
+.next-*
