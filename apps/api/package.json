@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "dev": "tsx watch src/main.ts",
-    "build": "tsup src/main.ts --format esm --noExternal @dial/contracts --noExternal @dial/db --noExternal @dial/core --noExternal @dial/providers --target node22",
+    "build": "tsup src/main.ts src/migrate.ts --format esm --noExternal @dial/contracts --noExternal @dial/db --noExternal @dial/core --noExternal @dial/providers --target node22",
     "start": "node dist/main.js",
     "test": "vitest run --passWithNoTests"
   },
