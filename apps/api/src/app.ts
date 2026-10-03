@@ -263,42 +263,55 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       data: { task_id: task.id, status: s.task.status },
     };
   }));
+  const NO_TASK: ToolResult = { ok: false, spoken: "I don't have an application in progress yet. Want me to start one?" };
+  const resolveTask = async (userId: string, given?: string) => given ?? (await svc.currentTaskId(userId));
+
   app.post("/v1/voice/tools/get_application_status", lim(120), async (req, reply) => voice(req, reply, GetApplicationStatusArgs, async (a, { userId }) => {
-    const s = await settle(userId, a.task_id, 9_000);
-    return { ok: true, spoken: s.spoken, data: { task_id: a.task_id, status: s.task.status, delivery: s.attempt?.deliveryStatus ?? "none" } };
+    const taskId = await resolveTask(userId, a.task_id);
+    if (!taskId) return NO_TASK;
+    const s = await settle(userId, taskId, 9_000);
+    return { ok: true, spoken: s.spoken, data: { task_id: taskId, status: s.task.status, delivery: s.attempt?.deliveryStatus ?? "none" } };
   }));
   app.post("/v1/voice/tools/revise_application", lim(20), async (req, reply) => voice(req, reply, ReviseApplicationArgs, async (a, { userId }) => {
-    await svc.reviseApplication(userId, a.task_id, { instruction: a.use_original_cv && a.instruction.length < 3 ? undefined : a.instruction, useOriginalCv: a.use_original_cv });
-    const s = await settle(userId, a.task_id, 12_000);
+    const taskId = await resolveTask(userId, a.task_id);
+    if (!taskId) return NO_TASK;
+    await svc.reviseApplication(userId, taskId, { instruction: a.use_original_cv && a.instruction.length < 3 ? undefined : a.instruction, useOriginalCv: a.use_original_cv });
+    const s = await settle(userId, taskId, 12_000);
     const ready = s.task.status === "ready_for_review";
     return {
       ok: true,
       spoken: ready ? (a.use_original_cv ? "Done. I've switched to your original CV. Any earlier approval no longer applies. Want me to read it back?" : "Done. I've updated the draft. Any earlier approval no longer applies. Want me to read it back?")
         : s.task.status === "preparing" ? "I'm updating the draft. Any earlier approval no longer applies. Ask me for the status in a moment." : s.spoken,
-      data: { task_id: a.task_id, status: s.task.status },
+      data: { task_id: taskId, status: s.task.status },
     };
   }));
   app.post("/v1/voice/tools/review_application", lim(30), async (req, reply) => voice(req, reply, ReviewApplicationArgs, async (a, { userId }) => {
-    const r = await svc.reviewApplication(userId, a.task_id);
+    const taskId = await resolveTask(userId, a.task_id);
+    if (!taskId) return NO_TASK;
+    const r = await svc.reviewApplication(userId, taskId);
     return {
       ok: true,
       spoken: `Here's what I'd send. It goes to ${r.recipient}, subject: ${r.subject}. The attachment is ${r.attachment}. ${r.changeSummary.join(" ")} Do you want me to send it?`,
-      data: { review_token: r.token, recipient: r.recipient, subject: r.subject, attachment: r.attachmentChoice, version: r.version, expires_in_sec: r.expiresInSec },
+      data: { task_id: taskId, review_token: r.token, recipient: r.recipient, subject: r.subject, attachment: r.attachmentChoice, version: r.version, expires_in_sec: r.expiresInSec },
     };
   }));
   app.post("/v1/voice/tools/confirm_and_send", lim(10), async (req, reply) => voice(req, reply, ConfirmAndSendArgs, async (a, { userId, callSessionId, fp }) => {
-    const r = await svc.confirmAndSend(userId, a.task_id, a.review_token, {
+    const taskId = await resolveTask(userId, a.task_id);
+    if (!taskId) return NO_TASK;
+    const evidence = {
       kind: "voice-tool-invocation", callSessionId, tokenFingerprint: fp, at: new Date().toISOString(),
-      note: "Platform provides no caller audio or per-call identity; this records that the agent invoked the tool with a valid review token.",
-    });
+      note: "Platform provides no caller audio or per-call identity; this records that the agent invoked the tool after a read-back of this exact version.",
+    };
+    // The caller (the voice model) may not pass the review token. Then we require a fresh read-back of the current version instead.
+    const r = a.review_token ? await svc.confirmAndSend(userId, taskId, a.review_token, evidence) : await svc.confirmAfterRecentReview(userId, taskId, evidence);
     // Do the send now so the caller hears the real outcome. "Sent" is only claimed once the email service has accepted it.
-    const s = await settle(userId, a.task_id, 9_000);
+    const s = await settle(userId, taskId, 9_000);
     const accepted = s.task.status === "sent";
     return {
       ok: true,
       spoken: accepted ? "Done. The email service has accepted it. Whether it reached the inbox isn't confirmed yet."
         : r.alreadyQueued ? "That one is already on its way. Ask me for the status if you like." : "Approved. I'm sending it now. Ask me for the status in a moment.",
-      data: { task_id: a.task_id, status: s.task.status },
+      data: { task_id: taskId, status: s.task.status },
     };
   }));
 

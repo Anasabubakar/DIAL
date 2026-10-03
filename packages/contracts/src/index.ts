@@ -82,13 +82,14 @@ export const ListSavedRolesArgs = z.object({});
 export const PrepareApplicationArgs = z
   .object({ role_id: z.string().min(1).max(64).optional(), role_hint: z.string().max(200).optional(), use_original_cv: z.boolean().optional(), mode: ExecutionMode.optional() })
   ;
-export const GetApplicationStatusArgs = z.object({ task_id: z.string().min(1).max(64) });
+// task_id and review_token are optional: the voice model often fails to carry IDs between steps, so Dial tracks the current application itself.
+export const GetApplicationStatusArgs = z.object({ task_id: z.string().min(1).max(64).optional() });
 export const ReviseApplicationArgs = z
-  .object({ task_id: z.string().min(1).max(64), instruction: z.string().min(1).max(500), use_original_cv: z.boolean().optional() })
+  .object({ task_id: z.string().min(1).max(64).optional(), instruction: z.string().min(1).max(500), use_original_cv: z.boolean().optional() })
   ;
-export const ReviewApplicationArgs = z.object({ task_id: z.string().min(1).max(64) });
+export const ReviewApplicationArgs = z.object({ task_id: z.string().min(1).max(64).optional() });
 export const ConfirmAndSendArgs = z
-  .object({ task_id: z.string().min(1).max(64), review_token: z.string().min(10).max(2000) })
+  .object({ task_id: z.string().min(1).max(64).optional(), review_token: z.string().min(10).max(2000).optional() })
   ;
 
 export type ToolName =

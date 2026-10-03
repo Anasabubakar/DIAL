@@ -233,3 +233,55 @@ describe("voice tools tolerate what an LLM tool-caller really sends", () => {
     expect(JSON.stringify(rows)).not.toContain(VOICE); // the bearer token is never stored
   });
 });
+
+describe("voice flow without any IDs (the voice model doesn't carry them)", () => {
+  async function build() {
+    const cfg = loadConfig({ NODE_ENV: "test", DEV_AUTH: "true", VOICE_MODE: "demo", VOICE_TOOL_TOKEN: VOICE, VOICE_DEMO_USER_ID: "demo" });
+    const h = await createDb({ dataDir: "memory://" });
+    await migrate(h, MIGRATIONS_DIR);
+    const email = new SandboxEmail();
+    const svc = new DialService({ db: h.db, storage: new MemoryStorage(), drafter: new SimulatedDrafter(), email, cfg: { emailFrom: cfg.EMAIL_FROM, reviewSecret: cfg.reviewSecret, downloadSecret: cfg.downloadSecret } });
+    const app = await buildApp({ cfg, svc, db: h.db, email, drain: async () => { let n = 0; while (await processNext(h.db, svc, "t", { backoffMs: 0 })) n++; return n; } });
+    await svc.saveProfile("demo", PROFILE, true); await svc.saveRole("demo", ROLE);
+    const call = async (tool: string, body: object = {}) => (await app.inject({ method: "POST", url: `/v1/voice/tools/${tool}`, headers: { authorization: `Bearer ${VOICE}` }, payload: body })).json();
+    return { call, email, svc };
+  }
+  test("prepare, review, confirm with empty bodies sends exactly once", async () => {
+    const { call, email } = await build();
+    expect((await call("prepare_application", {})).data.status).toBe("ready_for_review");
+    expect((await call("get_application_status", {})).data.status).toBe("ready_for_review");
+    const rev = await call("review_application", {});
+    expect(rev.spoken).toMatch(/jobs@paystack.test/);
+    const conf = await call("confirm_and_send", {});
+    expect(conf.data.status).toBe("sent");
+    expect(email.sent).toHaveLength(1);
+    expect((await call("confirm_and_send", {})).ok).toBe(true); // repeated confirm is a no-op
+    expect(email.sent).toHaveLength(1);
+  });
+  test("confirming before any read-back is refused and nothing is sent", async () => {
+    const { call, email } = await build();
+    await call("prepare_application", {});
+    const c = await call("confirm_and_send", {});
+    expect(c.ok).toBe(false);
+    expect(c.spoken).toMatch(/read that version back|read it back/);
+    expect(email.sent).toHaveLength(0);
+  });
+  test("a read-back of an older version doesn't authorise the revised one", async () => {
+    const { call, email } = await build();
+    await call("prepare_application", {});
+    await call("review_application", {});
+    await call("revise_application", { instruction: "make it warmer" });
+    const c = await call("confirm_and_send", {});
+    expect(c.ok).toBe(false);
+    expect(email.sent).toHaveLength(0);
+    await call("review_application", {});
+    expect((await call("confirm_and_send", {})).data.status).toBe("sent");
+    expect(email.sent).toHaveLength(1);
+  });
+  test("with no application at all, tools answer helpfully instead of failing", async () => {
+    const { call } = await build();
+    const r = await call("review_application", {});
+    expect(r.ok).toBe(false);
+    expect(r.spoken).toMatch(/don't have an application in progress/);
+  });
+});

@@ -20,16 +20,17 @@ const token = env("VOICE_TOOL_TOKEN");
 if (token.length < 32) throw new Error("VOICE_TOOL_TOKEN must be at least 32 characters");
 
 const str = (name: string, description: string, required = false) => ({ name, type: "string" as const, description, required });
+const OPT = " Optional: leave it out and Dial uses the application you are working on now.";
 const tools = [
   { name: "list_saved_roles", path: "list_saved_roles", description: "List the roles the caller has saved. Use when they ask what they can apply for.", body: [] },
   { name: "prepare_application", path: "prepare_application", description: "Start preparing an application. Returns a task_id immediately; poll get_application_status.",
     body: [str("role_hint", "Company or job title the caller mentioned, if any."), { name: "use_original_cv", type: "boolean" as const, description: "True only if the caller asked to use their original CV.", required: false }, str("mode", "Either \"cloud\" or \"laptop\". Set it only if the caller said where to do it. \"laptop\" is not available yet: the tool will say so and offer the cloud.")] },
-  { name: "get_application_status", path: "get_application_status", description: "Check progress of an application. Speak the 'spoken' field. Call every few seconds until it is ready for review.", body: [str("task_id", "The task_id returned by prepare_application.", true)] },
+  { name: "get_application_status", path: "get_application_status", description: "Check progress of an application. Speak the 'spoken' field. Call every few seconds until it is ready for review.", body: [str("task_id", "The task_id returned by prepare_application." + OPT)] },
   { name: "revise_application", path: "revise_application", description: "Change the draft. Any earlier approval stops counting. Then poll status and review again.",
-    body: [str("task_id", "The task_id.", true), str("instruction", "What the caller wants changed, in their words.", true), { name: "use_original_cv", type: "boolean" as const, description: "True if they want their original CV attached.", required: false }] },
-  { name: "review_application", path: "review_application", description: "Get the recipient, subject, attachment and changes to read back. Returns a review_token for confirm_and_send.", body: [str("task_id", "The task_id.", true)] },
-  { name: "confirm_and_send", path: "confirm_and_send", description: "Send the reviewed draft. Only call after the caller clearly says yes to the exact read-back. Never claim it is sent; say it is being sent.",
-    body: [str("task_id", "The task_id.", true), str("review_token", "The review_token from the most recent review_application.", true)] },
+    body: [str("task_id", "The task_id." + OPT), str("instruction", "What the caller wants changed, in their words.", true), { name: "use_original_cv", type: "boolean" as const, description: "True if they want their original CV attached.", required: false }] },
+  { name: "review_application", path: "review_application", description: "Get the recipient, subject, attachment and changes to read back. Returns a review_token for confirm_and_send.", body: [str("task_id", "The task_id." + OPT)] },
+  { name: "confirm_and_send", path: "confirm_and_send", description: "Send the reviewed draft. Only call after the caller clearly says yes to the exact read-back. Never claim it is sent.",
+    body: [str("task_id", "The task_id." + OPT), str("review_token", "The review_token from review_application." + OPT + " Dial only sends if the current version was just read back.")] },
 ];
 
 console.log(JSON.stringify({ agentId, baseUrl: `${base}/v1/voice/tools`, tools: tools.map((t) => t.name), apply }, null, 2));

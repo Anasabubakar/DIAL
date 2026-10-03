@@ -135,6 +135,13 @@ export class DialService {
 
   /* ------------------------------ tasks: prepare / revise ------------------------------ */
 
+  /** The application the caller is most likely talking about: their newest one still in progress, else their newest. */
+  async currentTaskId(userId: string): Promise<string | null> {
+    const active = (await this.db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ACTIVE))).orderBy(desc(tasks.createdAt)).limit(1))[0];
+    if (active) return active.id;
+    return (await this.db.select({ id: tasks.id }).from(tasks).where(eq(tasks.userId, userId)).orderBy(desc(tasks.createdAt)).limit(1))[0]?.id ?? null;
+  }
+
   async ownedTask(userId: string, taskId: string) {
     const t = (await this.db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId))))[0];
     if (!t) throw new DialError("not_found", "I couldn't find that application.");
@@ -356,6 +363,27 @@ export class DialService {
       throw new DialError("invalid_state", "The draft changed after it was reviewed. Let me read it back again.");
     }
     return { alreadyQueued: false as const, task: await this.ownedTask(userId, taskId) };
+  }
+
+  /**
+   * Voice only: confirm without the caller passing a review token. Allowed only when a read-back of the CURRENT draft version
+   * was issued within the review window, which is the same guarantee the token gives (the version approved is the version read out).
+   */
+  async confirmAfterRecentReview(userId: string, taskId: string, evidence: Record<string, unknown>) {
+    const t = await this.ownedTask(userId, taskId);
+    // Already sent (or sending) this version: repeating the confirmation is harmless and never sends twice.
+    if (t.status === "sending" || t.status === "sent" || t.status === "send_uncertain") {
+      const a = await this.latestAttempt(taskId);
+      if (a && a.draftVersion === t.currentVersion) return { alreadyQueued: true as const, task: t };
+    }
+    const dr = await this.currentDraft(taskId, t.currentVersion);
+    if (t.status !== "ready_for_review" || !dr) throw new DialError("invalid_state", "There's nothing ready to send. Let me read it back first.");
+    const ttl = this.d.cfg.reviewTtlSec ?? 600;
+    const last = (await this.db.select().from(taskEvents).where(and(eq(taskEvents.taskId, taskId), eq(taskEvents.type, "review_issued"))).orderBy(desc(taskEvents.createdAt)).limit(1))[0];
+    const fresh = last && (last.data as { version?: number } | null)?.version === dr.version && Date.now() - last.createdAt.getTime() < ttl * 1000;
+    if (!fresh) throw new DialError("invalid_state", "I haven't read that version back to you yet. Let me do that first.");
+    const token = signToken({ uid: userId, tid: taskId, v: dr.version, h: dr.contentHash, exp: Math.floor(Date.now() / 1000) + 60 }, this.d.cfg.reviewSecret);
+    return this.confirmAndSend(userId, taskId, token, { ...evidence, tokenSource: "server-side recent review" });
   }
 
   async latestAttempt(taskId: string) {
